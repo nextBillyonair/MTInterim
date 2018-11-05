@@ -1,0 +1,225 @@
+%------------------------------------------------------------------------------
+%   PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%------------------------------------------------------------------------------
+
+\documentclass[twoside,twocolumn]{article}
+
+\usepackage[english]{babel} % Language hyphenation and typographical rules
+
+% Document margins
+\usepackage[hmarginratio=1:1,top=32mm,left=20mm,right=20mm,columnsep=20pt]{geometry}
+% Custom captions under/above floats in tables or figures
+\usepackage[hang, small,labelfont=bf,up,textfont=it,up]{caption}
+\usepackage{booktabs} % Horizontal rules in tables
+
+\usepackage{enumitem} % Customized lists
+\setlist[itemize]{noitemsep} % Make itemize lists more compact
+\usepackage{textcomp}
+
+% Allows abstract customization
+\usepackage{abstract}
+% Set the "Abstract" text to bold
+\renewcommand{\abstractnamefont}{\normalfont\bfseries}
+% Set the abstract itself to small italic text
+\renewcommand{\abstracttextfont}{\normalfont\small\itshape}
+
+\usepackage{fancyhdr} % Headers and footers
+\pagestyle{fancy} % All pages have headers and footers
+\fancyhead{} % Blank out the default header
+\fancyfoot{} % Blank out the default footer
+\fancyhead[C]{\thetitle}
+\fancyfoot[RO,LE]{\thepage} % Custom footer text
+
+\usepackage{titling} % Customizing the title section
+
+\usepackage{hyperref} % For hyperlinks in the PDF
+\usepackage{amsmath}
+
+\usepackage{tikz}
+\usetikzlibrary{bayesnet}
+\usetikzlibrary{arrows}
+
+\usepackage{color}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\usepackage{graphicx}
+
+\captionsetup[figure]{labelfont={bf},textfont=normalfont}
+
+%------------------------------------------------------------------------------
+%   TITLE SECTION
+%------------------------------------------------------------------------------
+
+\setlength{\droptitle}{-4\baselineskip} % Move the title up
+
+\pretitle{\begin{center}\Huge\bfseries} % Article title formatting
+\posttitle{\end{center}} % Article title closing formatting
+
+\title{MT Interim Report: \\ Neural Word Alignemnt}
+\author{%
+\textsc{Bailey Parker} \\[1ex]
+\normalsize Johns Hopkins University \\
+\normalsize \href{mailto:bailey@jhu.edu}{bailey@jhu.edu}
+ \and
+ \textsc{Vivian Tsai} \\[1ex]
+\normalsize Johns Hopkins University \\
+\normalsize \href{mailto:viv@jhu.edu}{viv@jhu.edu}
+ \and
+  \textsc{William Watson} \\[1ex]
+\normalsize Johns Hopkins University \\
+\normalsize \href{mailto:billwatson@jhu.edu}{billwatson@jhu.edu}
+}
+
+\date{}
+
+%------------------------------------------------------------------------------
+\DeclareMathOperator*{\argmax}{arg\,max}
+\newcommand{\qdist}[1]{\ifmmode\langle#1\rangle\else\textlangle#1\textrangle\fi}
+\renewcommand{\vec}[1]{\mathbf{#1}}
+
+\begin{document}
+
+% Print the title
+\maketitle
+
+% \section{Introduction}
+
+% TODO
+
+%------------------------------------------------------------------------------
+
+\begin{abstract}
+% \noindent \blindtext
+% Add tldr on interim
+\end{abstract}
+
+%------------------------------------------------------------------------------
+\section{Introduction}
+
+\section{Data Procurement and Processing}
+\subsection{Symbol Tokenization}
+\subsection{Number Tokenization}
+\subsection{Proper Noun Tokenization}
+\subsection{Lemmatization Techniques}
+\subsection{POS Tagging}
+
+\section{Model Components}
+\subsection{Preliminary Notation}
+% inputs, lambdas, scaling facotrs, etc, anything on notation
+We begin by stating several operations frequently used in our discussion.
+
+\subsubsection{Hadamard Product}
+
+To perform element-wise multiplication of two matricies $A$ and $B$, of equivalent dimensions, we use the hadamard product, defined as the $\circ$.
+\begin{equation}
+  (A \circ B)_{ij} = A_{ij} \cdot B_{ij}
+\end{equation}
+
+\subsubsection{Sigmoid Function}
+
+The sigmoid function $\sigma$ is applied element wise and defined as follows:
+\begin{equation}
+  \sigma(x) = \frac{1}{1+e^{-x}}
+\end{equation}
+
+\subsubsection{Hyperbolic Tangent Function}
+
+The hyperbolic tangent function $\tanh$ is defined as follows:
+\begin{equation}
+  \tanh(x) = \frac{e^x - e^{-x}} {e^x + e^{-x}}
+\end{equation}
+and is applied element-wise.
+
+\subsubsection{Variables}
+We define our source sequence as $s$, target sequence as $t$, and refer to the $i$-th source token as $s_i$. We refer to the $j$-th target token as $t_j$. We refer to a matrix $\psi$ whose rows represent values related to source tokens $s_i$ and whose columns refer to values realted to target tokens $t_j$. Hence, $\psi$ is an $|s| \times |t|$ sized matrix.
+
+\subsection{Softmax and Log Softmax}
+The softmax function transforms a vector of values into a probability distirbution. Appliying the softmax function to an n-dimensional input tensor rescales it so that the elements of the n-dimensional output tensor lie in the range (0,1) and sum to 1.
+\begin{equation}
+  \sigma(\vec{x})_i = \frac{e^{x_i}}{\sum_j e^{x_j}}
+\end{equation}
+
+For a matrix $\psi$, the rows correspond to source words $s_i$ and the columns correspond to target words $t_j$. In addition, when we softmax with respect to the targets, i.e. $\sigma_t(\psi)$, the softmax is applied per column. If applied per row, we denote this as $\sigma_s(\psi)$.
+\begin{equation}
+  \sigma_t(\psi)_{ij} = \frac{e^{\psi_{ij}}}{\sum_{k} e^{\psi_{kj}}}
+\end{equation}
+\begin{equation}
+  \sigma_s(\psi)_{ij} = \frac{e^{\psi_{ij}}}{\sum_{k} e^{\psi_{ik}}}
+\end{equation}
+
+However, it is sometimes better to work in log-space, and use the log softmax operator for numerical stability.
+\begin{equation}
+  \log \sigma_t(\psi)_{ij} = \log \frac{e^{\psi_{ij}}}{\sum_{k} e^{\psi_{kj}}}
+\end{equation}
+\begin{equation}
+  \log \sigma_s(\psi)_{ij} = \log \frac{e^{\psi_{ij}}}{\sum_{k} e^{\psi_{ik}}}
+\end{equation}
+
+\subsection{Word Embeddings}
+Word Embedding layers allow for a simple lookup table that stores embeddings of a fixed dictionary and size. More specifically, these layers are often used to store word embeddings and retrieve them using indices. The input to the embedding layer is a list of indices, and the output is the corresponding word embeddings. This allows words to be represented numerically to a set embedding dimension size, and thus can be passed onto later layers.
+
+Word Embeddings can be formulated as a weight matrix $W_e$, where the vector representation of word $w_i$ is the $i$-th row of the matrix, and can be represented as
+$W_e[w_i]$.
+
+\begin{equation}
+  W_e = \begin{bmatrix}
+  \longleftarrow w_1 \longrightarrow \\
+  \vdots\\
+  \longleftarrow w_i \longrightarrow\\
+  \vdots\\
+  \longleftarrow w_n \longrightarrow
+\end{bmatrix}
+\end{equation}
+
+\subsection{Gated Recurrent Units (GRU)}
+Gated Recurrent Units are a more complex formulation to recurrent layers to process sequences, and improve the vanishing gradient problem found in vanilla RNN layers while using less parameters than a Long Short-Term Memory (LSTM) layer\cite{grupaper}. A GRU makes use of 3 gates: $r_t$ reset gate; $z_t$ update gate; $n_t$ new gate. These 3 gates allow for a blending of the hidden state with new input, and are computed as follows for each input $x_t$ in a sequence $\vec{x}$:
+\begin{equation}
+  \begin{split}\begin{array}{ll}
+  r_t = \sigma(W_{ir} x_t + b_{ir} + W_{hr} h_{t-1} + b_{hr}) \\
+  z_t = \sigma(W_{iz} x_t + b_{iz} + W_{hz} h_{t-1} + b_{hz}) \\
+  n_t = \tanh(W_{in} x_t + b_{in} + r_t \circ (W_{hn} h_{t-1}+ b_{hn})) \\
+  h_t = (1 - z_t) \circ n_t + z_t \circ h_{t-1} \\
+  \end{array}\end{split}
+\end{equation}
+where $x_t$ is input at time $t$, $h_{t-1}$ is the hidden state of the previous layer at time $t-1$ or the initial hidden state at time $0$, $h_t$ is the new hidden state at time $t$, and $\sigma$ is the sigmoid function.
+\subsection{Bidirectional GRU}
+\subsection{Alignment Prior}
+\subsection{Batch Matrix Multiplication (BMM)}
+
+\section{Model Descriptions}
+\subsection{Dot Aligner}
+\subsection{Bidirectional GRU Aligner}
+\subsection{Extensions}
+
+\section{Loss Function}
+% quick tldr, point to appendix for each sub thing, jsut describe
+% it
+\subsection{Supervised Loss}
+\subsection{Unsupervised Alignment Loss}
+
+\section{Ground Truth Alignment Results?}
+% ?
+
+\section{Current Status}
+% what do we currently have for him?
+
+\section{Future Work}
+% what to get done by final report
+
+
+
+%------------------------------------------------------------------------------
+
+% References
+\bibliographystyle{abbrv}
+\bibliography{interim_report}
+
+%------------------------------------------------------------------------------
+
+
+\clearpage
+\appendix
+\onecolumn
+
+\end{document}
