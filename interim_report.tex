@@ -184,6 +184,33 @@ Gated Recurrent Units are a more complex formulation to recurrent layers to proc
 \end{equation}
 where $x_t$ is input at time $t$, $h_{t-1}$ is the hidden state of the previous layer at time $t-1$ or the initial hidden state at time $0$, $h_t$ is the new hidden state at time $t$, and $\sigma$ is the sigmoid function.
 \subsection{Bidirectional GRU}
+\label{sec:bidirectional}
+
+GRUs only process sequences in a forward direction. However, for translation and in general NLP, we also care about the succeeding input. %@viv rephrase
+We thus introduce the Bidirectional GRU, which that runs two separate GRU layers in opposite directions and stacks the output s.t. each element has the context of elements before and after it.
+
+Let us define $\operatorname{GRU}(input)$ as a GRU layer that outputs the hidden cells from $input$ on a single forward pass. Let us also define the operator $\overrightarrow{h}$ as the tensor with elements ordered in order $[0,$ $n]$, and $\overleftarrow{h}$ as the tensor elements ordered from $[n,$ $0]$, i.e. reversed.
+
+When flipping the arrow, i.e., from $\overrightarrow{h}$ to $\overleftarrow{h}$, we define this operation as an invert/reverse function, and it flips the elements to the opposite orientation. We additionally declare $\Vert$ as the concatenation operator. Finally, we define $\overrightarrow{h_f}$ as the forward output, $\overleftarrow{h_b}$ as the backward output, and $h_o$ as the final, stacked bidirectional output.
+
+\begin{equation}
+  \label{eq:bidirectional}
+  \begin{split}
+    \begin{array}{ll}
+      % fix to have forward and reverse arrows, and update top
+      \overrightarrow{h_f} = \operatorname{GRU}(\overrightarrow{input})\\
+      \\
+      \overleftarrow{h_b} = \operatorname{GRU}(\overleftarrow{input})\\
+      \\
+      h_o = \overrightarrow{h_f} \,\,\Vert \,\, \overrightarrow{h_b}\\
+      \\
+    \end{array}
+  \end{split}
+\end{equation}
+
+From the above equations, we compute the forward output normally; compute the backwards output on the inverted input; and concatenate the forward outputs with the inverted backwards outputs. All final hidden states are provided as well. The output is of size $(N,$ $batch,$ $hidden\_size*2)$ since we concatenate the outputs of the two GRU layers.
+
+
 \subsection{Alignment Prior}
 \subsection{Batch Matrix Multiplication (BMM)}
 
