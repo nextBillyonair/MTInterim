@@ -91,7 +91,7 @@
 
 \begin{abstract}
 % \noindent \blindtext
-% Add tldr on interim
+We will discuss our intial progress made on our Neural Word Alignemnt. More specifically, we will discuss our data procurement methods and processing algorithms. In addition, we elaborate on our current experimental models, including the Dot Aligner and Bidirectional GRU Aligner. Our loss function, train/eval implmentation, and batching techiques are also discussed.
 \end{abstract}
 
 %------------------------------------------------------------------------------
@@ -173,6 +173,7 @@ $W_e[w_i]$.
 \end{equation}
 
 \subsection{Gated Recurrent Units (GRU)}
+\label{sec:gru}
 Gated Recurrent Units are a more complex formulation to recurrent layers to process sequences, and improve the vanishing gradient problem found in vanilla RNN layers while using less parameters than a Long Short-Term Memory (LSTM) layer\cite{grupaper}. A GRU makes use of 3 gates: $r_t$ reset gate; $z_t$ update gate; $n_t$ new gate. These 3 gates allow for a blending of the hidden state with new input, and are computed as follows for each input $x_t$ in a sequence $\vec{x}$:
 \begin{equation}
   \begin{split}\begin{array}{ll}
@@ -208,24 +209,176 @@ When flipping the arrow, i.e., from $\overrightarrow{h}$ to $\overleftarrow{h}$,
   \end{split}
 \end{equation}
 
-From the above equations, we compute the forward output normally; compute the backwards output on the inverted input; and concatenate the forward outputs with the inverted backwards outputs. All final hidden states are provided as well. The output is of size $(N,$ $batch,$ $hidden\_size*2)$ since we concatenate the outputs of the two GRU layers.
+From the above equations, we compute the forward output normally; compute the backwards output on the inverted input; and concatenate the forward outputs with the inverted backwards outputs. All final hidden states are provided as well. The output is of size $(N,$ $batch,$ $hidden$ $size*2)$ since we concatenate the outputs of the two GRU layers.
 
 
 \subsection{Alignment Prior}
+\label{sec:alingment_prior}
+In order to learn diagonal alignemnts, we describe our formulation of the IBM Model 2 reparameterization as a custom PyTorch layer. We define the prior alignment matrix $A$ as an $|s| \times |t|$. Given a source token $s_i$ and target token $t_j$, and alignment hyperparameter $\lambda$, we deifne the alignment distortion function $a_{ij}$:
+\begin{equation}
+  a_{ij} = -\lambda | i - j |
+\end{equation}
+
+We set the default $\lambda$ value to $4$. We then proceed to compute a log softmax on each column of the alignemnt matrix $a$. This encodes our diagonal prior, and allows us to add in the diagonal weights to our networks weights. We allow for a learnable scaling factor $\alpha$ to control the strength of this prior, defaulted to $0.25$. Hence our IBM Model 2 module outputs the softmaxed alignemnt prior matrix $A$:
+\begin{equation}
+  A_{ij} = \alpha \cdot \log \left[ \frac{e^{a_{ij}}}{\sum_k e^{a_{kj}}} \right]
+\end{equation}
+
 \subsection{Batch Matrix Multiplication (BMM)}
+\label{sec:bmm}
+To combine source and target tensors, we use Batch Matrix Multiplication. Given a matrix $A$ of size $(b,$ $n,$ $m)$ and matrix $B$ of size $(b,$ $m,$ $p)$, we perform matrix multiplication on the sub-matricies to create an output matrix $O$ of size $(b$ $n,$ $p)$.
+
+\begin{equation}
+  O_i = A_i \times B_i
+\end{equation}
+
+This allows us to combine the vectorized output of our network on each individual sequence and combine them into a matrix tensor of size $(b,$ $|s|,$ $|t|)$. This requires the use of simple transpose functions to align the dimensions of each pairing sentence to correctly compute the BMM.
 
 \section{Model Descriptions}
+We use the aformentioned model components to construct complex alignment models, and provide a more through discussion on our techiques.
 \subsection{Dot Aligner}
+This is our baseline model. This model attempts to learn word embeddings to correctly give alignemnt outputs.
+
+The intuition behind this baseline mdoel was to compute dot products between every source token $s_i$ embedding and target token $t_j$ embedding to generate an alignment matrix via BMM (Section ~\ref{sec:bmm}), combined with the diagonal prior discussed in Section ~\ref{sec:alingment_prior}. The ouput is the alignment matrix $\psi$.
+
+This is a very simple model that only learns the pure embeddings, and therefore we do not expect it to do as well as more complex models. The full computation graph can be seen in Figure ~\ref{fig:dot_aligner}.
+
+\begin{figure}
+  \centering
+  \begin{tikzpicture}
+
+    % Define nodes
+    \node[latent] (plus) {$+$};
+    \node[latent, below=1cm of plus] (psi) {$\psi$};
+    \node[rectangle, above=2.5cm of plus, xshift=-2.25cm] (bmm) {BMM};
+    \node[rectangle, above=1cm of bmm, xshift=-1cm] (embed_s) {Embed};
+    \node[rectangle, above=1cm of bmm, xshift=1cm] (embed_t) {Embed};
+    \node[obs, above=1cm of embed_s] (s) {$s$};
+    \node[obs, above=1cm of embed_t] (t) {$t$};
+    \node[obs, right=0.6cm of t] (lamb) {$\lambda$};
+    \node[obs, right=0.6cm of lamb] (i) {$i$};
+    \node[obs, right=0.6cm of i] (j) {$j$};
+    \node[rectangle, below=1cm of i] (align) {$a_{ij} = -\lambda |i-j|$};
+    \node[rectangle, below=1cm of align] (logsoft) {$\log \sigma_t(a)$};
+    \node[latent, below=0.75cm of logsoft] (mux) {$\times$};
+    \node[latent, right=0.5cm of logsoft] (alpha) {$\alpha$};
+
+
+    % Connect the nodes
+    \edge {s} {embed_s};
+    \edge {t} {embed_t};
+    \edge {embed_s, embed_t} {bmm};
+    \edge {bmm} {plus};
+    \edge {lamb, i, j} {align};
+    \edge {align} {logsoft};
+    \edge {logsoft, alpha} {mux};
+    \edge {mux} {plus};
+    \edge {plus} {psi};
+
+  \end{tikzpicture}
+  \caption{Model Architecture for Dot Aligner for source $s$, target $t$ alignments. $\alpha$ is a global learnable scaling factor for the importance of alignment distribution $\log \sigma_t(a)$, and $\lambda$ is the global alignment distortion parameter.}
+  \label{fig:dot_aligner}
+\end{figure}
+
 \subsection{Bidirectional GRU Aligner}
+
+An extension to the capacity of the Dot Aligner is to add a bidirectional GRU after the embedding layers. This will allow the model to consider not only forward propagation of the input sequence, but also the reverse. Therefore, our vectorized encodings of each sequence has the context of the words in its local area for context. The downstream algorithm for forward propagation is the same after the recurrent layers, as detailed in Figure ~\ref{fig:gru_aligner}.
+
+\begin{figure}
+  \centering
+  \begin{tikzpicture}
+
+    % Define nodes
+    \node[latent] (plus) {$+$};
+    \node[latent, below=1cm of plus] (psi) {$\psi$};
+    \node[rectangle, above=1cm of plus, xshift=-2.25cm] (bmm) {BMM};
+    \node[rectangle, above=1cm of bmm, xshift=-1cm] (gru_s) {GRU};
+    \node[rectangle, above=1cm of bmm, xshift=1cm] (gru_t) {GRU};
+    \node[rectangle, above=1cm of gru_s] (embed_s) {Embed};
+    \node[rectangle, above=1cm of gru_t] (embed_t) {Embed};
+    \node[obs, above=1cm of embed_s] (s) {$s$};
+    \node[obs, above=1cm of embed_t] (t) {$t$};
+    \node[obs, right=0.6cm of t] (lamb) {$\lambda$};
+    \node[obs, right=0.6cm of lamb] (i) {$i$};
+    \node[obs, right=0.6cm of i] (j) {$j$};
+    \node[rectangle, below=1cm of i] (align) {$a_{ij} = -\lambda |i-j|$};
+    \node[rectangle, below=1cm of align] (logsoft) {$\log \sigma_t(a)$};
+    \node[latent, below=1cm of logsoft] (mux) {$\times$};
+    \node[latent, right=0.5cm of logsoft] (alpha) {$\alpha$};
+
+
+    % Connect the nodes
+    \edge {s} {embed_s};
+    \edge {t} {embed_t};
+    \edge {embed_s} {gru_s};
+    \edge {embed_t} {gru_t};
+    \edge {gru_s, gru_t} {bmm};
+    \edge {bmm} {plus};
+    \edge {lamb, i, j} {align};
+    \edge {align} {logsoft};
+    \edge {logsoft, alpha} {mux};
+    \edge {mux} {plus};
+    \edge {plus} {psi};
+
+  \end{tikzpicture}
+  \caption{Model Architecture for Dot Aligner for source $s$, target $t$ alignments. $\alpha$ is a global learnable scaling factor for the importance of alignment distribution $\log \sigma_t(a)$, and $\lambda$ is the global alignment distortion parameter.}
+  \label{fig:gru_aligner}
+\end{figure}
+
 \subsection{Extensions}
+Here we discuss possible extensions to the two aformentioned models, to improve the capacity to learn alignments based upon our initial results.
 
 \section{Loss Function}
 % quick tldr, point to appendix for each sub thing, jsut describe
 % it
 \subsection{Supervised Loss}
+
 \subsection{Unsupervised Alignment Loss}
 
-\section{Ground Truth Alignment Results?}
+% refrence appendix
+
+Our unsupervised loss function, to be minimized, is a 5-term equation. We define:
+\begin{itemize}[label={}]
+  \item $a_t$ as the target prior alignment matrix normalized per column with respect to $t$\\ %per col wrt t
+  \item $a_s$ as the source prior alignment matrix normalized per row with respect to $s$\\ %per row wrt s
+  \item $\sigma_s$ as the softmax operator applied on the rows of a matrix\\
+  \item $\sigma_t$ as the softmax operator applied to each column of a matrix
+\end{itemize}
+
+Indexing is done under the assumption that source words $s_i$ form rows
+and target words $t_j$ form columns. The term $ij$ is a shorthand
+for $s_i$ and $t_j$ indexing into our matrices.
+
+\begin{equation}
+  \centering
+\begin{split}
+  Lo&ss = \\
+  &- \sum_j^{|t|} \log \left[
+      \sum_i^{|s|} \exp \left(
+        \log \sigma_s(\theta(t, s))_{ij} + \log \sigma_t(\psi)_{ij} \right)
+    \right] \\
+  &+ \sum_i^n \sum_j^m \sigma_t(\psi)_{ij} \cdot \log \left[
+    \frac{\sigma_t(\psi)_{ij}}{a_t(i, j)} \right] \\
+  &- \sum_i^{|s|} \log \left[ \sum_j^{|t|}
+      \exp \left(
+        \log \sigma_t(\theta(t, s))_{ij} + \log \sigma_s(\psi)_{ij}
+      \right)
+    \right] \\
+  &+ \sum_i^n \sum_j^m \sigma_s(\psi)_{ij} \cdot \log \left[
+    \frac{\sigma_s(\psi)_{ij}}{a_s(i, j)} \right] \\
+  &- \log \sum_i^{|s|} \sum_j^{|t|} \left[
+    \sigma_s(\psi) \circ \sigma_t(\psi) \right]_{ij} \\
+\end{split}
+\end{equation}
+
+
+\section{Train/Eval Implmentation}
+\subsection{Vocabulary Building}
+\subsection{Batching}
+\subsection{Optimizer}
+\subsection{Additonal Items}
+
+\section{Ground Truth Alignment Results}
 % ?
 
 \section{Current Status}
