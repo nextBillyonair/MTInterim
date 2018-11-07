@@ -331,6 +331,52 @@ Here we discuss possible extensions to the two aformentioned models, to improve 
 % it
 \subsection{Supervised Loss}
 
+% get better notation
+\begin{equation}
+  \phi_{ij} = \begin{cases}
+  1 & \text{if } s_i \text{ aligns } t_j \\
+  0 & \text{else}
+  \end{cases}
+\end{equation}
+
+\begin{equation}
+  MLE(s, t) = \prod_i \prod_j \left[ \frac{\exp \psi_{ij}}{\sum_k \exp \psi_{ik}} \right]^{\phi_{ij}} \cdot \left[ \frac{\exp \psi_{ij}}{\sum_k \exp \psi_{kj}} \right]^{\phi_{ij}}
+\end{equation}
+
+\begin{equation}
+  MLE(s, t) = \prod_i \prod_j \left[ \sigma_s(\psi)_{ij} \right]^{\phi_{ij}} \cdot \left[ \sigma_t(\psi)_{ij} \right]^{\phi_{ij}}
+\end{equation}
+
+\begin{equation}
+  NLL(s, t) = - \sum_i \sum_j  \phi_{ij} \cdot \log \sigma_s (\psi)_{ij} + \phi_{ij} \cdot \log \sigma_t (\psi)_{ij}
+\end{equation}
+
+\begin{figure}
+  \centering
+  \begin{tikzpicture}
+
+    % Define nodes
+    \node[latent] (loss) {$\mathcal{L}$};
+    \node[rectangle, above=0.5cm of loss] (nsum) {$-\sum$};
+    \node[obs, above=2.5cm of nsum] (mask) {$\phi$};
+    \node[obs, above=1cm of mask] (psi) {$\psi$};
+    \node[latent, above=0.5cm of nsum, xshift=-0.75cm] (muxs) {$\times$};
+    \node[latent, above=0.5cm of nsum, xshift=0.75cm] (muxt) {$\times$};
+    \node[rectangle, above=0.5cm of muxs, xshift=-0.75cm] (logs) {$\log \sigma_s (\psi)$};
+
+    \node[rectangle, above=0.5cm of muxt, xshift=0.75cm] (logt) {$\log \sigma_t (\psi)$};
+
+    % Connect the nodes
+    \edge {psi} {logs, logt};
+    \edge {logs, mask} {muxs};
+    \edge {logt, mask} {muxt};
+    \edge {muxs, muxt} {nsum};
+    \edge {nsum} {loss};
+
+  \end{tikzpicture}
+  \caption{Computation graph for our supervised loss function. The generated alignment matrix $\psi$ is compared to the ground truth alignment matrix $\phi$.}
+  \label{fig:supervised_loss}
+\end{figure}
 
 \subsection{Unsupervised Alignment Loss}
 
