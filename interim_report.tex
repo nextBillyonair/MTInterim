@@ -219,9 +219,9 @@ In order to learn diagonal alignemnts, we describe our formulation of the IBM Mo
   a_{ij} = -\lambda | i - j |
 \end{equation}
 
-We set the default $\lambda$ value to $4$. We then proceed to compute a log softmax on each column of the alignemnt matrix $a$. This encodes our diagonal prior, and allows us to add in the diagonal weights to our networks weights. We allow for a learnable scaling factor $\alpha$ to control the strength of this prior, defaulted to $0.25$. Hence our IBM Model 2 module outputs the softmaxed alignemnt prior matrix $A$:
+We set the default $\lambda$ value to $4$. This encodes our diagonal prior, and allows us to add in the diagonal weights to our network's weights. We allow for an optional, learnable scaling factor $\alpha$ to control the strength of this prior, defaulted to $0.25$. Hence our IBM Model 2 module outputs the alignemnt prior matrix $A$:
 \begin{equation}
-  A_{ij} = \alpha \cdot \log \left[ \frac{e^{a_{ij}}}{\sum_k e^{a_{kj}}} \right]
+  A_{ij} = \alpha \cdot a_{ij}
 \end{equation}
 
 \subsection{Batch Matrix Multiplication (BMM)}
@@ -250,33 +250,32 @@ This is a very simple model that only learns the pure embeddings, and therefore 
     % Define nodes
     \node[latent] (plus) {$+$};
     \node[latent, below=1cm of plus] (psi) {$\psi$};
-    \node[rectangle, above=2.5cm of plus, xshift=-2.25cm] (bmm) {BMM};
-    \node[rectangle, above=1cm of bmm, xshift=-1cm] (embed_s) {Embed};
-    \node[rectangle, above=1cm of bmm, xshift=1cm] (embed_t) {Embed};
-    \node[obs, above=1cm of embed_s] (s) {$s$};
-    \node[obs, above=1cm of embed_t] (t) {$t$};
+    \node[rectangle, above=0.75cm of plus, xshift=-2.25cm] (bmm) {BMM};
+    \node[rectangle, above=0.5cm of bmm, xshift=-1cm] (embed_s) {Embed};
+    \node[rectangle, above=0.5cm of bmm, xshift=1cm] (embed_t) {Embed};
+    \node[obs, above=0.75cm of embed_s] (s) {$s$};
+    \node[obs, above=0.75cm of embed_t] (t) {$t$};
     \node[obs, right=0.6cm of t] (lamb) {$\lambda$};
     \node[obs, right=0.6cm of lamb] (i) {$i$};
     \node[obs, right=0.6cm of i] (j) {$j$};
-    \node[rectangle, below=1cm of i] (align) {$a_{ij} = -\lambda |i-j|$};
-    \node[rectangle, below=1cm of align] (logsoft) {$\log \sigma_t(a)$};
-    \node[latent, below=0.75cm of logsoft] (mux) {$\times$};
-    \node[latent, right=0.5cm of logsoft] (alpha) {$\alpha$};
+    \node[rectangle, below=0.75cm of i] (align) {$a_{ij} = -\lambda |i-j|$};
+    % \node[rectangle, below=1cm of align] (logsoft) {$\log \sigma_t(a)$};
+    \node[latent, below=0.75cm of align] (mux) {$\times$};
+    \node[latent, right=0.5cm of align] (alpha) {$\alpha$};
 
 
     % Connect the nodes
     \edge {s} {embed_s};
     \edge {t} {embed_t};
     \edge {embed_s, embed_t} {bmm};
-    \edge {bmm} {plus};
     \edge {lamb, i, j} {align};
-    \edge {align} {logsoft};
-    \edge {logsoft, alpha} {mux};
-    \edge {mux} {plus};
+    % \edge {align} {logsoft};
+    \edge {align, alpha} {mux};
+    \edge {mux, bmm} {plus};
     \edge {plus} {psi};
 
   \end{tikzpicture}
-  \caption{Model Architecture for Dot Aligner for source $s$, target $t$ alignments. $\alpha$ is a global learnable scaling factor for the importance of alignment distribution $\log \sigma_t(a)$, and $\lambda$ is the global alignment distortion parameter.}
+  \caption{Model Architecture for Dot Aligner for source $s$, target $t$ alignments. $\alpha$ is a global learnable scaling factor for the importance of alignment distribution $a$, and $\lambda$ is the global alignment distortion parameter.}
   \label{fig:dot_aligner}
 \end{figure}
 
@@ -291,20 +290,20 @@ An extension to the capacity of the Dot Aligner is to add a bidirectional GRU af
     % Define nodes
     \node[latent] (plus) {$+$};
     \node[latent, below=1cm of plus] (psi) {$\psi$};
-    \node[rectangle, above=1cm of plus, xshift=-2.25cm] (bmm) {BMM};
-    \node[rectangle, above=1cm of bmm, xshift=-1cm] (gru_s) {GRU};
-    \node[rectangle, above=1cm of bmm, xshift=1cm] (gru_t) {GRU};
-    \node[rectangle, above=1cm of gru_s] (embed_s) {Embed};
-    \node[rectangle, above=1cm of gru_t] (embed_t) {Embed};
-    \node[obs, above=1cm of embed_s] (s) {$s$};
-    \node[obs, above=1cm of embed_t] (t) {$t$};
+    \node[rectangle, above=0.5cm of plus, xshift=-2.25cm] (bmm) {BMM};
+    \node[rectangle, above=0.5cm of bmm, xshift=-1cm] (gru_s) {GRU};
+    \node[rectangle, above=0.5cm of bmm, xshift=1cm] (gru_t) {GRU};
+    \node[rectangle, above=0.5cm of gru_s] (embed_s) {Embed};
+    \node[rectangle, above=0.5cm of gru_t] (embed_t) {Embed};
+    \node[obs, above=0.75cm of embed_s] (s) {$s$};
+    \node[obs, above=0.75cm of embed_t] (t) {$t$};
     \node[obs, right=0.6cm of t] (lamb) {$\lambda$};
     \node[obs, right=0.6cm of lamb] (i) {$i$};
     \node[obs, right=0.6cm of i] (j) {$j$};
-    \node[rectangle, below=1cm of i] (align) {$a_{ij} = -\lambda |i-j|$};
-    \node[rectangle, below=1cm of align] (logsoft) {$\log \sigma_t(a)$};
-    \node[latent, below=1cm of logsoft] (mux) {$\times$};
-    \node[latent, right=0.5cm of logsoft] (alpha) {$\alpha$};
+    \node[rectangle, below=0.75cm of i] (align) {$a_{ij} = -\lambda |i-j|$};
+    % \node[rectangle, below=1cm of align] (logsoft) {$\log \sigma_t(a)$};
+    \node[latent, below=1cm of align] (mux) {$\times$};
+    \node[latent, right=0.5cm of align] (alpha) {$\alpha$};
 
 
     % Connect the nodes
@@ -313,15 +312,14 @@ An extension to the capacity of the Dot Aligner is to add a bidirectional GRU af
     \edge {embed_s} {gru_s};
     \edge {embed_t} {gru_t};
     \edge {gru_s, gru_t} {bmm};
-    \edge {bmm} {plus};
     \edge {lamb, i, j} {align};
-    \edge {align} {logsoft};
-    \edge {logsoft, alpha} {mux};
-    \edge {mux} {plus};
+    % \edge {align} {logsoft};
+    \edge {align, alpha} {mux};
+    \edge {mux, bmm} {plus};
     \edge {plus} {psi};
 
   \end{tikzpicture}
-  \caption{Model Architecture for Bidirectional GRU Aligner for source $s$, target $t$ alignments. $\alpha$ is a global learnable scaling factor for the importance of alignment distribution $\log \sigma_t(a)$, and $\lambda$ is the global alignment distortion parameter.}
+  \caption{Model Architecture for Bidirectional GRU Aligner for source $s$, target $t$ alignments. $\alpha$ is a global learnable scaling factor for the importance of alignment distribution $a$, and $\lambda$ is the global alignment distortion parameter.}
   \label{fig:gru_aligner}
 \end{figure}
 
@@ -332,6 +330,7 @@ Here we discuss possible extensions to the two aformentioned models, to improve 
 % quick tldr, point to appendix for each sub thing, jsut describe
 % it
 \subsection{Supervised Loss}
+
 
 \subsection{Unsupervised Alignment Loss}
 
