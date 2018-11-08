@@ -432,6 +432,8 @@ for $s_i$ and $t_j$ indexing into our matrices.
 \end{split}
 \end{equation}
 
+The full derivation of the loss function and its component terms can be found in Appendix ~\ref{appendix:loss-function}.
+
 
 \section{Train/Eval Implmentation}
 \subsection{Vocabulary Building}
@@ -464,7 +466,7 @@ for $s_i$ and $t_j$ indexing into our matrices.
 \onecolumn
 \begin{myparindent}{0pt}
 \section{Loss Function}
-
+\label{appendix:loss-function}
 To create our loss function, we convert our alignment matrix $\psi$
 to a probability distribution. We define $\sigma(\vec{x})$ as
 the softmax operator applied on vector $\vec{x}$, and $\sigma(\vec{x})_i$ as
@@ -731,5 +733,5 @@ for $s_i$ and $t_j$ indexing into our matrices.
 % target-to-source because even though the loss function is symmetric, the
 % probabilities are normalized with respect to n or m, depending which
 % direction you are translating
-\end{myparindent}{0pt}
+\end{myparindent}
 \end{document}
