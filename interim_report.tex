@@ -77,6 +77,13 @@
 \DeclareMathOperator*{\argmax}{arg\,max}
 \newcommand{\qdist}[1]{\ifmmode\langle#1\rangle\else\textlangle#1\textrangle\fi}
 \renewcommand{\vec}[1]{\mathbf{#1}}
+\newlength\mystoreparindent
+\newenvironment{myparindent}[1]{%
+  \setlength{\mystoreparindent}{\the\parindent}
+  \setlength{\parindent}{#1}
+  }{%
+  \setlength{\parindent}{\mystoreparindent}
+}
 
 \begin{document}
 
@@ -330,26 +337,35 @@ Here we discuss possible extensions to the two aformentioned models, to improve 
 % quick tldr, point to appendix for each sub thing, jsut describe
 % it
 \subsection{Supervised Loss}
+We can formulate our supervised loss as maximizing the probabilities of our alignments, $\psi$, with the ground truth alignments, represented as $\phi$.
 
+Our targets are binary valued alignment matricies of size $|s| \times |t|$. Our targets $\phi$ are defined as follows for a source token $s_i$ and target token $t_j$:
 % get better notation
 \begin{equation}
   \phi_{ij} = \begin{cases}
-  1 & \text{if } s_i \text{ aligns } t_j \\
+  1 & \text{if } s_i \text{ aligns with } t_j \\
   0 & \text{else}
   \end{cases}
 \end{equation}
 
-\begin{equation}
-  MLE(s, t) = \prod_i \prod_j \left[ \frac{\exp \psi_{ij}}{\sum_k \exp \psi_{ik}} \right]^{\phi_{ij}} \cdot \left[ \frac{\exp \psi_{ij}}{\sum_k \exp \psi_{kj}} \right]^{\phi_{ij}}
-\end{equation}
+Hence, if a source token $s_i$ aligns with $t_j$, our target is 1. We now formulate our loss objective as the maximum likelihood estimate (MLE) between our alignment matrix $\psi$ and target matrix $\phi$. However, $\psi$ are hard weights, and we use the softmax function to convert our alignment weights to valid probabilities. In addition, we seek to maximize the probability for both the row ($\sigma_s$) and column ($\sigma_t$) softmax. Hence our MLE function to be maximized is:
 
 \begin{equation}
-  MLE(s, t) = \prod_i \prod_j \left[ \sigma_s(\psi)_{ij} \right]^{\phi_{ij}} \cdot \left[ \sigma_t(\psi)_{ij} \right]^{\phi_{ij}}
+  MLE(\psi, \phi) = \prod_i \prod_j \left[ \frac{\exp \psi_{ij}}{\sum_k \exp \psi_{ik}} \right]^{\phi_{ij}} \cdot \left[ \frac{\exp \psi_{ij}}{\sum_k \exp \psi_{kj}} \right]^{\phi_{ij}}
 \end{equation}
 
+
 \begin{equation}
-  NLL(s, t) = - \sum_i \sum_j  \phi_{ij} \cdot \log \sigma_s (\psi)_{ij} + \phi_{ij} \cdot \log \sigma_t (\psi)_{ij}
+  MLE(\psi, \phi) = \prod_i \prod_j \left[ \sigma_s(\psi)_{ij} \right]^{\phi_{ij}} \cdot \left[ \sigma_t(\psi)_{ij} \right]^{\phi_{ij}}
 \end{equation}
+
+We can see that by maximizing the MLE function allows our network to drive the probabilities of alignment to be as close to $1$ as possible, and implicity depresses all other values along the row and column. However, neural networks do not maximizing objective functions, and the multiplication of small probaiblites leads to issues of numerical stabliltiy. We therefore define the Negative Log Likelihood function:
+
+\begin{equation}
+  NLL(\psi, \phi) = - \sum_i \sum_j  \phi_{ij} \cdot \log \sigma_s (\psi)_{ij} + \phi_{ij} \cdot \log \sigma_t (\psi)_{ij}
+\end{equation}
+
+We sum up the log alignment probabilities corresponding to our target alignments, and this is minimized when the probability of alignment is high, and hence we can learn target alignments between source sentence $s$ and target sentence $t$.
 
 \begin{figure}
   \centering
@@ -446,5 +462,274 @@ for $s_i$ and $t_j$ indexing into our matrices.
 \clearpage
 \appendix
 \onecolumn
+\begin{myparindent}{0pt}
+\section{Loss Function}
 
+To create our loss function, we convert our alignment matrix $\psi$
+to a probability distribution. We define $\sigma(\vec{x})$ as
+the softmax operator applied on vector $\vec{x}$, and $\sigma(\vec{x})_i$ as
+the $x_i$ softmax probability for vector $\vec{x}$.
+
+\begin{equation}
+\sigma(\vec{x})_i = \frac{\exp(x_i)}{\sum_j\exp(x_j)}
+\end{equation}
+
+We therefore define two operations on the alignment matrix $\psi$. For source
+$s$ to target $t$ probability generations, we define $\sigma_t(\psi)$ as the
+softmax on each column, i.e., target word $t_j$.
+\begin{equation}
+  \sigma_t(\psi) = \left[
+    \begin{matrix}
+      \sigma(\psi_{t_1}) &
+      \hdots &
+      \sigma(\psi_{t_j}) &
+      \hdots &
+      \sigma(\psi_{t_m})  \\
+    \end{matrix}
+\right]
+\end{equation}
+Equivalently,
+
+\begin{equation}
+  \sigma_t(\psi)_{ij} = \frac{e^{\psi_{ij}}}{\sum_{k} e^{\psi_{kj}}}
+\end{equation}
+
+In addition, we further define the target-to-source generation as
+$\sigma_s(\psi)$, where the softmax operator is applied on each row for target
+word $s_i$ and produces a row vector.
+\begin{equation}
+  \sigma_s(\psi) = \left[
+    \begin{matrix}
+      \sigma(\psi_{s_1})  \\
+      \vdots \\
+      \sigma(\psi_{s_i})  \\
+      \vdots \\
+      \sigma(\psi_{s_n})  \\
+    \end{matrix}
+\right]
+\end{equation}
+Equivalently,
+
+\begin{equation}
+  \sigma_s(\psi)_{ij} = \frac{e^{\psi_{ij}}}{\sum_{k} e^{\psi_{ik}}}
+\end{equation}
+
+While VAEs sample from the probability distribution derived by the neural
+network, our model's distribution is discrete. Therefore, we need not
+sample and can instead compute the loss in terms of all possibilities.
+
+\subsection{Probability Maximization}
+
+In our original formulation, we
+maximized probabilities for word alignments.
+For this model, we define $p(t, s | \theta, \psi)$ as such:
+
+\begin{equation}
+  p(t, s | \theta, \psi)
+    = \prod_j^{|t|} \sum_i^{|s|} p_\theta(t_j| s_i) \cdot p_a(i|j)
+    = \prod_j^{|t|} \sum_i^{|s|} \sigma_s(\theta(t_j, s_i)) \cdot \sigma_t(\psi)_{ij}
+\end{equation}
+
+This formula stems from our assumption that the alignments for each
+target word are conditionally independent, hence a product over target
+words $t_j$. We then sum over all the alignment possibilities from the source
+words $s_i$, thus marginalizing over the alignments.
+
+For $s \mapsto t$ alignments, alignments are softmaxed per column because we hold the target $t_j$ constant and iterate over the source $s_i$, hence $\sigma_t$.
+
+The translation probabilities are softmaxed per row (i.e., source word $s_i$) since we are given a source word
+and want to know the probability of translating $s_i$ to $t_j$, hence $\sigma_s$.
+
+However, as we do not maximize in neural networks, we must transform this
+equation into a minimization problem by taking the negative log of $p$:
+
+\begin{equation}
+  -\log p(t, s | \theta, \psi) =
+  - \sum_j^{|t|}
+     \log \left[ \sum_i^{|s|} \sigma_s \left( \theta(t_j, s_i) \right) \cdot
+      \sigma_t(\psi)_{ij} \right]
+\end{equation}
+
+We can simplify this into the equation below, for easier implementation
+(via PyTorch's \texttt{logsumexp} function):
+
+\begin{equation}
+  -\log  p(t , s | \theta, \psi) =
+  - \sum_j^{|t|}  \log \left[ \sum_i^{|s|} \exp
+      \left( \log \sigma_s(\theta(t_j, s_i)) + \log \sigma_t(\psi)_{ij} \right)
+    \right]
+\end{equation}
+
+This is the term to be minimized for our source-to-target word alignment
+generation.
+
+
+\subsection{KL Divergence and Prior Terms}
+
+We also need to minimize the Kullback-Leibler (KL) divergence between our
+distribution and a prior. For discrete probability distributions $P$ and $Q$
+defined on the same probability space, the reverse KL divergence from $Q$ to
+$P$ is defined as:
+
+\begin{equation}
+D_{\mathrm{KL}}(Q \| P) = \sum_{i} Q(i) \log \left( \frac{Q(i)}{P(i)} \right)
+\end{equation}
+
+In other words, it is the expectation of the log difference between the
+probabilities $P$ and $Q$, where the expectation is taken using the
+probabilities $Q$.
+
+To calculate the KL divergence of our model, we must define
+distributions $P$ and $Q$. We first consider $P$ as our prior
+distribution, henceforth called $a_t$. This prior distribution $a_t$ is a
+$n \times m$ matrix filled with the alignment probabilities filled for source
+word $s_i$; target word $t_j$; source sentence $s$ of length $n$; and target
+sentence $t$ of length $m$:
+
+We define distortion exponent $h$ as:
+\begin{equation}
+  h(i, j) = {-\lambda \left| \frac{i}{n} - \frac{j}{m}\right|}
+\end{equation}
+
+% might have to flip this to be sum over i' not j' DONE
+\begin{equation}
+  Z_j = \sum_{i'} \exp h(i', j)
+\end{equation}
+
+\begin{equation}
+a_t (i, j) =
+\begin{cases}
+      p_0 & \text{if } null \\
+     (1-p_0) \cdot \frac{e^{h(i,j)}}{Z_j} & \text{else}
+   \end{cases}
+\end{equation}
+
+In \cite{dyer2013simple}, parameter values were selected as
+$\lambda = 4$ and $p_0 = 0.08$ for the entire corpus.
+Each element value of $a_t$ is normalized by the sum of the column distortion
+values to create a valid distribution via term $Z_j$ (since we hold target $t_j$ constant). For future notation, let the subscript on the distirbution $a$ denote
+the way we normalize; i.e., $a_t$ is the prior alignment distribution normalized
+with respect to target words $t_j$ and thus normalized by the sum of the column
+for $t_j$.
+
+% \todo: change?
+We can then write our KL Divergence (to be minimized) as:
+
+\begin{equation}
+  D_{\mathrm{KL}}(\sigma_t(\psi) \| a_t) =
+    \sum_i^n \sum_j^m \sigma_t(\psi)_{ij} \cdot
+      \log \left[ \frac{\sigma_t(\psi)_{ij}}{a_t(i, j)} \right]
+\end{equation}
+
+
+\subsection{Target-to-Source Loss Terms}
+
+We have described the loss terms for a source $s$ to target $t$ word alignment.
+However, we seek to perform alignment by agreement. Hence, we must add loss
+functions that describe the evaluation of target $t$ to source $s$:
+
+\begin{equation}
+  -\log  p(t , s | \theta, \psi) =
+  - \sum_i^{|s|}  \log \left[ \sum_j^{|t|}
+      \exp \left(
+        \log \sigma_t(\theta(t_j, s_i)) + \log \sigma_s(\psi)_{ij}
+      \right)
+    \right]
+\end{equation}
+
+\noindent
+Additionally, for the KL Divergence term for target $t$ to source $s$:
+
+\begin{equation}
+D_{\mathrm{KL}} (\sigma_s(\psi) \| a_s) = \sum_i^n \sum_j^m \sigma_s(\psi)_{ij}
+  \cdot \log \left[ \frac{\sigma_s(\psi)_{ij}}{a_s(i, j)} \right]
+\end{equation}
+
+\noindent
+where the normalization of the prior $a_s$ is on the row instead of the column.
+In other words, we hold the source $s_i$ constant; sum the row; and divide each
+row element by the sum.
+
+The equations for $a_s$ are as follows:
+
+\begin{equation}
+  h(i, j) = {-\lambda \left| \frac{i}{n} - \frac{j}{m}\right|}
+\end{equation}
+
+% might have to flip this to be sum over i' not j' DONE
+\begin{equation}
+  Z_i = \sum_{j'} \exp h(i, j')
+\end{equation}
+
+\begin{equation}
+a_s (i, j) =
+\begin{cases}
+      p_0 & \text{if } null \\
+     (1-p_0) \cdot \frac{e^{h(i,j)}}{Z_i} & \text{else}
+   \end{cases}
+\end{equation}
+
+We also perform the softmax operator on each column of the $\psi$ matrix,
+previously defined as $\sigma_t(\psi)$.
+
+
+\subsection{Alignment by Agreement}
+
+Finally, one last loss function term must be added to jointly train each model.
+We define $\circ$ as the Hadamard Product, which is the element-wise
+multiplication of two matrices. For instance:
+$(A \circ B)_{ij} = A_{ij} \cdot B_{ij}$.
+
+We can write the term as such:
+
+\begin{equation}
+  -\log \sum_i^{|s|} \sum_j^{|t|}
+    \left[ \sigma_s(\psi) \circ \sigma_t(\psi) \right]_{ij}
+\end{equation}
+
+% Again note here, you can use logsumexp trick to implement this efficiently in
+% PyTorch
+
+
+\subsection{Combined Loss Function}
+
+Our final loss function, to be minimized, is a 5-term equation. We define:
+\begin{itemize}[label={}]
+  \item $a_t$ as the target prior alignment matrix normalized per column with respect to $t$\\ %per col wrt t
+  \item $a_s$ as the source prior alignment matrix normalized per row with respect to $s$\\ %per row wrt s
+  \item $\sigma_s$ as the softmax operator applied on the rows of a matrix\\
+  \item $\sigma_t$ as the softmax operator applied to each column of a matrix
+\end{itemize}
+
+Indexing is done under the assumption that source words $s_i$ form rows
+and target words $t_j$ form columns. The term $ij$ is a shorthand
+for $s_i$ and $t_j$ indexing into our matrices.
+
+\begin{equation}
+  \centering
+\begin{split}
+  Lo&ss = \\
+  &- \sum_j^{|t|} \log \left[
+      \sum_i^{|s|} \exp \left(
+        \log \sigma_s(\theta(t, s))_{ij} + \log \sigma_t(\psi)_{ij} \right)
+    \right] \\
+  &+ \sum_i^n \sum_j^m \sigma_t(\psi)_{ij} \cdot \log \left[
+    \frac{\sigma_t(\psi)_{ij}}{a_t(i, j)} \right] \\
+  &- \sum_i^{|s|} \log \left[ \sum_j^{|t|}
+      \exp \left(
+        \log \sigma_t(\theta(t, s))_{ij} + \log \sigma_s(\psi)_{ij}
+      \right)
+    \right] \\
+  &+ \sum_i^n \sum_j^m \sigma_s(\psi)_{ij} \cdot \log \left[
+    \frac{\sigma_s(\psi)_{ij}}{a_s(i, j)} \right] \\
+  &- \log \sum_i^{|s|} \sum_j^{|t|} \left[
+    \sigma_s(\psi) \circ \sigma_t(\psi) \right]_{ij} \\
+\end{split}
+\end{equation}
+
+% Note, the alignment prior is not exactly the same for source-to-target and
+% target-to-source because even though the loss function is symmetric, the
+% probabilities are normalized with respect to n or m, depending which
+% direction you are translating
+\end{myparindent}{0pt}
 \end{document}
