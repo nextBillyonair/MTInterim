@@ -439,38 +439,53 @@ The full derivation of the loss function and its component terms can be found in
 \subsection{Vocabulary Building}
 \subsection{Batching}
 \subsection{Optimizer}
+Adam
 \subsection{Alignment Generations}
-\subsubsection{Argmax Alignments}
+Our models generate alignment matricies $\psi$. However, these matricies are just weights, and we need to covnert them into meanigful alignments. Hence we describe several methods to covert our weights into actual alignemnts.
 
+\subsubsection{Argmax Alignments}
+The simplest and naive version of generating alignments is to align a source token $s_i$ to a target token $t_j$ such that the alignment weight $\psi$ is maximized. We can do this with respect to the source (row) or target (column).
 \begin{equation}
   r_{ij} = \begin{cases}
-    1 & j=\argmax_k \psi_{ik} \\
+    1 & \text{if } j=\argmax_k \psi_{ik} \\
     0 & \text{else}
   \end{cases}
 \end{equation}
 
 \begin{equation}
   c_{ij} = \begin{cases}
-    1 & i=\argmax_k \psi_{kj} \\
+    1 & \text{if } i=\argmax_k \psi_{kj} \\
     0 & \text{else}
   \end{cases}
 \end{equation}
 
-\subsubsection{Union}
+However, this forces a single alignment for a row or column.
+
+\subsubsection{Union, Intersection, and Grow-Diag-Final}
+
+An improvement to the naive argmax alignments is to consider the union and intersection of the alignments generated. The union would be the element-wise hadamard product of the row and column alignments.
 
 \begin{equation}
   u_{ij} = r_{ij} \cdot c_{ij}
 \end{equation}
 
-\subsubsection{Intersection}
+This method generates alignments that both directions agree on. However, this is a more conservative alignement method that either argmax method alone. Hence, we could take theu intersection. This generates alignments where only one of the original directions has to align.
 
 \begin{equation}
   n_{ij} = r_{ij} \text{ or } c_{ij}
 \end{equation}
 
-\subsubsection{Grow-Diag-Final}
+% Add grow diag final here.
+
 
 \subsubsection{Thresholding}
+
+The best approach would be to allow for alignments to be generated under a threshold scheme. Hence we can generate multiple alignments per row (or column) that are likely. We can then apply the Grow-Diag-Final method to prune alignments to the union plus ajacent intersections.
+
+
+We first standardize our alingment weights to have zero mean and standard deviation of 1. This bounds the thresholding cirteria, since our weights can get arbitrailly large.
+
+For a source (row) based standardization:
 
 \begin{equation}
   \mu_{i} = \frac{1}{|t|} \sum_j \psi_{ij}
@@ -481,10 +496,14 @@ The full derivation of the loss function and its component terms can be found in
 \begin{equation}
   Z_{ij} = \frac{\psi_{ij} - \mu_i}{\sigma_i}
 \end{equation}
+
+For a target (column) standardization, we compute means and standard deviations along the columns.
+
+We can then apply a threshold to the values to generate alignments.
 % find adaptive threshold methods
 \begin{equation}
   a_{ij} = \begin{cases}
-    1 & Z_{ij} > \tau \\
+    1 & \text{if } Z_{ij} > \tau \\
     0 & \text{else}
   \end{cases}
 \end{equation}
