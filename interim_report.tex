@@ -390,7 +390,7 @@ We sum up the log alignment probabilities corresponding to our target alignments
     \edge {nsum} {loss};
 
   \end{tikzpicture}
-  \caption{Computation graph for our supervised loss function. The generated alignment matrix $\psi$ is compared to the ground truth alignment matrix $\phi$.}
+  \caption{Computation graph for our supervised loss function. The generated alignment matrix $\psi$ is compared to the ground truth alignment matrix $\phi$ to output a loss value $\mathcal{L}$.}
   \label{fig:supervised_loss}
 \end{figure}
 
@@ -439,7 +439,56 @@ The full derivation of the loss function and its component terms can be found in
 \subsection{Vocabulary Building}
 \subsection{Batching}
 \subsection{Optimizer}
-\subsection{Additonal Items}
+\subsection{Alignment Generations}
+\subsubsection{Argmax Alignments}
+
+\begin{equation}
+  r_{ij} = \begin{cases}
+    1 & j=\argmax_k \psi_{ik} \\
+    0 & \text{else}
+  \end{cases}
+\end{equation}
+
+\begin{equation}
+  c_{ij} = \begin{cases}
+    1 & i=\argmax_k \psi_{kj} \\
+    0 & \text{else}
+  \end{cases}
+\end{equation}
+
+\subsubsection{Union}
+
+\begin{equation}
+  u_{ij} = r_{ij} \cdot c_{ij}
+\end{equation}
+
+\subsubsection{Intersection}
+
+\begin{equation}
+  n_{ij} = r_{ij} \text{ or } c_{ij}
+\end{equation}
+
+\subsubsection{Grow-Diag-Final}
+
+\subsubsection{Thresholding}
+
+\begin{equation}
+  \mu_{i} = \frac{1}{|t|} \sum_j \psi_{ij}
+\end{equation}
+\begin{equation}
+  \sigma_{i} = \sqrt{\frac{\sum_j \left( \psi_{ij} - \mu_i \right)^2}{|t|-1}}
+\end{equation}
+\begin{equation}
+  Z_{ij} = \frac{\psi_{ij} - \mu_i}{\sigma_i}
+\end{equation}
+% find adaptive threshold methods
+\begin{equation}
+  a_{ij} = \begin{cases}
+    1 & Z_{ij} > \tau \\
+    0 & \text{else}
+  \end{cases}
+\end{equation}
+
 
 \section{Ground Truth Alignment Results}
 % ?
