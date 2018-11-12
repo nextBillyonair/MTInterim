@@ -98,7 +98,11 @@
 
 \begin{abstract}
 % \noindent \blindtext
-We will discuss our intial progress made on our Neural Word Alignemnt. More specifically, we will discuss our data procurement methods and processing algorithms. In addition, we elaborate on our current experimental models, including the Dot Aligner and Bidirectional GRU Aligner. Our loss function, train/eval implmentation, and batching techiques are also discussed.
+We will discuss our intial progress made on our Neural Word Alignemnt.
+More specifically, we will discuss our data procurement methods and processing
+algorithms. In addition, we elaborate on our current experimental models,
+including the Dot Aligner and Bidirectional GRU Aligner. Our loss function,
+train/eval implmentation, and batching techiques are also discussed.
 \end{abstract}
 
 %------------------------------------------------------------------------------
@@ -118,7 +122,8 @@ We begin by stating several operations frequently used in our discussion.
 
 \subsubsection{Hadamard Product}
 
-To perform element-wise multiplication of two matricies $A$ and $B$, of equivalent dimensions, we use the hadamard product, defined as the $\circ$.
+To perform element-wise multiplication of two matricies $A$ and $B$, of
+equivalent dimensions, we use the hadamard product, defined as the $\circ$.
 \begin{equation}
   (A \circ B)_{ij} = A_{ij} \cdot B_{ij}
 \end{equation}
@@ -139,15 +144,25 @@ The hyperbolic tangent function $\tanh$ is defined as follows:
 and is applied element-wise.
 
 \subsubsection{Variables}
-We define our source sequence as $s$, target sequence as $t$, and refer to the $i$-th source token as $s_i$. We refer to the $j$-th target token as $t_j$. We refer to a matrix $\psi$ whose rows represent values related to source tokens $s_i$ and whose columns refer to values realted to target tokens $t_j$. Hence, $\psi$ is an $|s| \times |t|$ sized matrix.
+We define our source sequence as $s$, target sequence as $t$, and refer to
+the $i$-th source token as $s_i$. We refer to the $j$-th target token as $t_j$.
+We refer to a matrix $\psi$ whose rows represent values related to source
+tokens $s_i$ and whose columns refer to values realted to target tokens $t_j$.
+Hence, $\psi$ is an $|s| \times |t|$ sized matrix.
 
 \subsection{Softmax and Log Softmax}
-The softmax function transforms a vector of values into a probability distirbution. Appliying the softmax function to an n-dimensional input tensor rescales it so that the elements of the n-dimensional output tensor lie in the range (0,1) and sum to 1.
+The softmax function transforms a vector of values into a probability
+distirbution. Appliying the softmax function to an n-dimensional input tensor
+rescales it so that the elements of the n-dimensional output tensor lie in the
+range (0,1) and sum to 1.
 \begin{equation}
   \sigma(\vec{x})_i = \frac{e^{x_i}}{\sum_j e^{x_j}}
 \end{equation}
 
-For a matrix $\psi$, the rows correspond to source words $s_i$ and the columns correspond to target words $t_j$. In addition, when we softmax with respect to the targets, i.e. $\sigma_t(\psi)$, the softmax is applied per column. If applied per row, we denote this as $\sigma_s(\psi)$.
+For a matrix $\psi$, the rows correspond to source words $s_i$ and the
+columns correspond to target words $t_j$. In addition, when we softmax
+with respect to the targets, i.e. $\sigma_t(\psi)$, the softmax is applied
+per column. If applied per row, we denote this as $\sigma_s(\psi)$.
 \begin{equation}
   \sigma_t(\psi)_{ij} = \frac{e^{\psi_{ij}}}{\sum_{k} e^{\psi_{kj}}}
 \end{equation}
@@ -155,7 +170,8 @@ For a matrix $\psi$, the rows correspond to source words $s_i$ and the columns c
   \sigma_s(\psi)_{ij} = \frac{e^{\psi_{ij}}}{\sum_{k} e^{\psi_{ik}}}
 \end{equation}
 
-However, it is sometimes better to work in log-space, and use the log softmax operator for numerical stability.
+However, it is sometimes better to work in log-space, and use the log
+softmax operator for numerical stability.
 \begin{equation}
   \log \sigma_t(\psi)_{ij} = \log \frac{e^{\psi_{ij}}}{\sum_{k} e^{\psi_{kj}}}
 \end{equation}
@@ -164,9 +180,16 @@ However, it is sometimes better to work in log-space, and use the log softmax op
 \end{equation}
 
 \subsection{Word Embeddings}
-Word Embedding layers allow for a simple lookup table that stores embeddings of a fixed dictionary and size. More specifically, these layers are often used to store word embeddings and retrieve them using indices. The input to the embedding layer is a list of indices, and the output is the corresponding word embeddings. This allows words to be represented numerically to a set embedding dimension size, and thus can be passed onto later layers.
+Word Embedding layers allow for a simple lookup table that stores embeddings
+of a fixed dictionary and size. More specifically, these layers are often used
+to store word embeddings and retrieve them using indices. The input to the
+embedding layer is a list of indices, and the output is the corresponding
+word embeddings. This allows words to be represented numerically to a set
+embedding dimension size, and thus can be passed onto later layers.
 
-Word Embeddings can be formulated as a weight matrix $W_e$, where the vector representation of word $w_i$ is the $i$-th row of the matrix, and can be represented as
+Word Embeddings can be formulated as a weight matrix $W_e$, where the
+vector representation of word $w_i$ is the $i$-th row of the matrix, and
+can be represented as
 $W_e[w_i]$.
 
 \begin{equation}
@@ -181,7 +204,13 @@ $W_e[w_i]$.
 
 \subsection{Gated Recurrent Units (GRU)}
 \label{sec:gru}
-Gated Recurrent Units are a more complex formulation to recurrent layers to process sequences, and improve the vanishing gradient problem found in vanilla RNN layers while using less parameters than a Long Short-Term Memory (LSTM) layer\cite{grupaper}. A GRU makes use of 3 gates: $r_t$ reset gate; $z_t$ update gate; $n_t$ new gate. These 3 gates allow for a blending of the hidden state with new input, and are computed as follows for each input $x_t$ in a sequence $\vec{x}$:
+Gated Recurrent Units are a more complex formulation to recurrent layers to
+process sequences, and improve the vanishing gradient problem found in
+vanilla RNN layers while using less parameters than a
+Long Short-Term Memory (LSTM) layer\cite{grupaper}. A GRU makes use of
+3 gates: $r_t$ reset gate; $z_t$ update gate; $n_t$ new gate. These 3 gates
+allow for a blending of the hidden state with new input, and are computed
+as follows for each input $x_t$ in a sequence $\vec{x}$:
 \begin{equation}
   \begin{split}\begin{array}{ll}
   r_t = \sigma(W_{ir} x_t + b_{ir} + W_{hr} h_{t-1} + b_{hr}) \\
@@ -190,16 +219,31 @@ Gated Recurrent Units are a more complex formulation to recurrent layers to proc
   h_t = (1 - z_t) \circ n_t + z_t \circ h_{t-1} \\
   \end{array}\end{split}
 \end{equation}
-where $x_t$ is input at time $t$, $h_{t-1}$ is the hidden state of the previous layer at time $t-1$ or the initial hidden state at time $0$, $h_t$ is the new hidden state at time $t$, and $\sigma$ is the sigmoid function.
+where $x_t$ is input at time $t$, $h_{t-1}$ is the hidden state of the
+previous layer at time $t-1$ or the initial hidden state at time $0$, $h_t$
+is the new hidden state at time $t$, and $\sigma$ is the sigmoid function.
 \subsection{Bidirectional GRU}
 \label{sec:bidirectional}
 
-GRUs only process sequences in a forward direction. However, for translation and in general NLP, we also care about the succeeding input. %@viv rephrase
-We thus introduce the Bidirectional GRU, which that runs two separate GRU layers in opposite directions and stacks the output s.t. each element has the context of elements before and after it.
+GRUs only process sequences in a forward direction. However, for
+translation and in general NLP, we also care about the succeeding input.
+%@viv rephrase
+We thus introduce the Bidirectional GRU, which that runs two separate GRU
+layers in opposite directions and stacks the output s.t. each element has
+the context of elements before and after it.
 
-Let us define $\operatorname{GRU}(input)$ as a GRU layer that outputs the hidden cells from $input$ on a single forward pass. Let us also define the operator $\overrightarrow{h}$ as the tensor with elements ordered in order $[0,$ $n]$, and $\overleftarrow{h}$ as the tensor elements ordered from $[n,$ $0]$, i.e. reversed.
+Let us define $\operatorname{GRU}(input)$ as a GRU layer that outputs the
+hidden cells from $input$ on a single forward pass. Let us also define the
+operator $\overrightarrow{h}$ as the tensor with elements ordered in
+order $[0,$ $n]$, and $\overleftarrow{h}$ as the tensor elements ordered
+from $[n,$ $0]$, i.e. reversed.
 
-When flipping the arrow, i.e., from $\overrightarrow{h}$ to $\overleftarrow{h}$, we define this operation as an invert/reverse function, and it flips the elements to the opposite orientation. We additionally declare $\Vert$ as the concatenation operator. Finally, we define $\overrightarrow{h_f}$ as the forward output, $\overleftarrow{h_b}$ as the backward output, and $h_o$ as the final, stacked bidirectional output.
+When flipping the arrow, i.e., from $\overrightarrow{h}$ to
+$\overleftarrow{h}$, we define this operation as an invert/reverse
+function, and it flips the elements to the opposite orientation. We
+additionally declare $\Vert$ as the concatenation operator. Finally, we
+define $\overrightarrow{h_f}$ as the forward output, $\overleftarrow{h_b}$
+as the backward output, and $h_o$ as the final, stacked bidirectional output.
 
 \begin{equation}
   \label{eq:bidirectional}
@@ -216,39 +260,67 @@ When flipping the arrow, i.e., from $\overrightarrow{h}$ to $\overleftarrow{h}$,
   \end{split}
 \end{equation}
 
-From the above equations, we compute the forward output normally; compute the backwards output on the inverted input; and concatenate the forward outputs with the inverted backwards outputs. All final hidden states are provided as well. The output is of size $(N,$ $batch,$ $hidden$ $size*2)$ since we concatenate the outputs of the two GRU layers.
+From the above equations, we compute the forward output normally;
+compute the backwards output on the inverted input; and concatenate
+the forward outputs with the inverted backwards outputs. All final
+hidden states are provided as well. The output is of
+size $(N,$ $batch,$ $hidden$ $size*2)$ since we concatenate the
+outputs of the two GRU layers.
 
 
 \subsection{Alignment Prior}
 \label{sec:alingment_prior}
-In order to learn diagonal alignemnts, we describe our formulation of the IBM Model 2 reparameterization as a custom PyTorch layer. We define the prior alignment matrix $A$ as an $|s| \times |t|$. Given a source token $s_i$ and target token $t_j$, and alignment hyperparameter $\lambda$, we deifne the alignment distortion function $a_{ij}$:
+In order to learn diagonal alignemnts, we describe our formulation of the
+IBM Model 2 reparameterization as a custom PyTorch layer. We define the
+prior alignment matrix $A$ as an $|s| \times |t|$. Given a source token
+$s_i$ and target token $t_j$, and alignment hyperparameter $\lambda$, we
+define the alignment distortion function $a_{ij}$:
 \begin{equation}
   a_{ij} = -\lambda | i - j |
 \end{equation}
 
-We set the default $\lambda$ value to $4$. This encodes our diagonal prior, and allows us to add in the diagonal weights to our network's weights. We allow for an optional, learnable scaling factor $\alpha$ to control the strength of this prior, defaulted to $0.25$. Hence our IBM Model 2 module outputs the alignemnt prior matrix $A$:
+We set the default $\lambda$ value to $4$. This encodes our diagonal prior,
+and allows us to add in the diagonal weights to our network's weights. We
+allow for an optional, learnable scaling factor $\alpha$ to control the
+strength of this prior, defaulted to $0.25$. Hence our IBM Model 2 module
+outputs the alignemnt prior matrix $A$:
 \begin{equation}
   A_{ij} = \alpha \cdot a_{ij}
 \end{equation}
 
 \subsection{Batch Matrix Multiplication\\(BMM)}
 \label{sec:bmm}
-To combine source and target tensors, we use Batch Matrix Multiplication. Given a matrix $A$ of size $(b,$ $n,$ $m)$ and matrix $B$ of size $(b,$ $m,$ $p)$, we perform matrix multiplication on the sub-matricies to create an output matrix $O$ of size $(b$ $n,$ $p)$.
+To combine source and target tensors, we use Batch Matrix Multiplication.
+Given a matrix $A$ of size $(b,$ $n,$ $m)$ and matrix $B$ of size
+$(b,$ $m,$ $p)$, we perform matrix multiplication on the sub-matricies
+to create an output matrix $O$ of size $(b$ $n,$ $p)$.
 
 \begin{equation}
   O_i = A_i \times B_i
 \end{equation}
 
-This allows us to combine the vectorized output of our network on each individual sequence and combine them into a matrix tensor of size $(b,$ $|s|,$ $|t|)$. This requires the use of simple transpose functions to align the dimensions of each pairing sentence to correctly compute the BMM.
+This allows us to combine the vectorized output of our network on each
+individual sequence and combine them into a matrix tensor of
+size $(b,$ $|s|,$ $|t|)$. This requires the use of simple transpose
+functions to align the dimensions of each pairing sentence to correctly
+compute the BMM.
 
 \section{Model Descriptions}
-We use the aformentioned model components to construct complex alignment models, and provide a more through discussion on our techiques.
+We use the aformentioned model components to construct complex alignment
+models, and provide a more through discussion on our techiques.
 \subsection{Dot Aligner}
-This is our baseline model. This model attempts to learn word embeddings to correctly give alignemnt outputs.
+This is our baseline model. This model attempts to learn word embeddings
+to correctly give alignemnt outputs.
 
-The intuition behind this baseline mdoel was to compute dot products between every source token $s_i$ embedding and target token $t_j$ embedding to generate an alignment matrix via BMM (Section ~\ref{sec:bmm}), combined with the diagonal prior discussed in Section ~\ref{sec:alingment_prior}. The ouput is the alignment matrix $\psi$.
+The intuition behind this baseline mdoel was to compute dot products
+between every source token $s_i$ embedding and target token $t_j$ embedding
+to generate an alignment matrix via BMM (Section ~\ref{sec:bmm}), combined
+with the diagonal prior discussed in Section ~\ref{sec:alingment_prior}.
+The ouput is the alignment matrix $\psi$.
 
-This is a very simple model that only learns the pure embeddings, and therefore we do not expect it to do as well as more complex models. The full computation graph can be seen in Figure ~\ref{fig:dot_aligner}.
+This is a very simple model that only learns the pure embeddings, and
+therefore we do not expect it to do as well as more complex models.
+The full computation graph can be seen in Figure ~\ref{fig:dot_aligner}.
 
 \begin{figure}
   \centering
@@ -282,13 +354,22 @@ This is a very simple model that only learns the pure embeddings, and therefore 
     \edge {plus} {psi};
 
   \end{tikzpicture}
-  \caption{Model Architecture for Dot Aligner for source $s$, target $t$ alignments. $\alpha$ is a global learnable scaling factor for the importance of alignment distribution $a$, and $\lambda$ is the global alignment distortion parameter.}
+  \caption{Model Architecture for Dot Aligner for source $s$,
+  target $t$ alignments. $\alpha$ is a global learnable scaling factor for
+  the importance of alignment distribution $a$, and $\lambda$ is the
+  global alignment distortion parameter.}
   \label{fig:dot_aligner}
 \end{figure}
 
 \subsection{Bidirectional GRU Aligner}
 
-An extension to the capacity of the Dot Aligner is to add a bidirectional GRU after the embedding layers. This will allow the model to consider not only forward propagation of the input sequence, but also the reverse. Therefore, our vectorized encodings of each sequence has the context of the words in its local area for context. The downstream algorithm for forward propagation is the same after the recurrent layers, as detailed in Figure ~\ref{fig:gru_aligner}.
+An extension to the capacity of the Dot Aligner is to add a
+bidirectional GRU after the embedding layers. This will allow the
+model to consider not only forward propagation of the input sequence,
+but also the reverse. Therefore, our vectorized encodings of each
+sequence has the context of the words in its local area for context.
+The downstream algorithm for forward propagation is the same after
+the recurrent layers, as detailed in Figure ~\ref{fig:gru_aligner}.
 
 \begin{figure}
   \centering
@@ -326,22 +407,34 @@ An extension to the capacity of the Dot Aligner is to add a bidirectional GRU af
     \edge {plus} {psi};
 
   \end{tikzpicture}
-  \caption{Model Architecture for Bidirectional GRU Aligner for source $s$, target $t$ alignments. $\alpha$ is a global learnable scaling factor for the importance of alignment distribution $a$, and $\lambda$ is the global alignment distortion parameter.}
+  \caption{Model Architecture for Bidirectional GRU Aligner
+  for source $s$, target $t$ alignments. $\alpha$ is a global
+  learnable scaling factor for the importance of alignment
+  distribution $a$, and $\lambda$ is the global alignment
+  distortion parameter.}
   \label{fig:gru_aligner}
 \end{figure}
 
 \subsection{Extensions}
-Here we discuss possible extensions to the two aformentioned models, to improve the capacity to learn alignments based upon our initial results.
+Here we discuss possible extensions to the two aformentioned models,
+to improve the capacity to learn alignments based upon our initial results.
 
 \section{Loss Function}
 % quick tldr, point to appendix for each sub thing, jsut describe
 % it
-We describe two modes of training: Supervised and Unsupervised. Supervised training allows us to measure the capactiy of our models to learn given alignments, and is the first step is validating our models ability to eventually learn unsupervised alignments.
+We describe two modes of training: Supervised and Unsupervised.
+Supervised training allows us to measure the capactiy of our models
+to learn given alignments, and is the first step is validating our
+models ability to eventually learn unsupervised alignments.
 
 \subsection{Supervised Loss}
-We can formulate our supervised loss as maximizing the probabilities of our alignments, $\psi$, with the ground truth alignments, represented as $\phi$.
+We can formulate our supervised loss as maximizing the probabilities
+of our alignments, $\psi$, with the ground truth alignments,
+represented as $\phi$.
 
-Our targets are binary valued alignment matricies of size $|s| \times |t|$. Our targets $\phi$ are defined as follows for a source token $s_i$ and target token $t_j$:
+Our targets are binary valued alignment matricies of size $|s| \times |t|$.
+Our targets $\phi$ are defined as follows for a source token $s_i$ and
+target token $t_j$:
 % get better notation
 \begin{equation}
   \phi_{ij} = \begin{cases}
@@ -350,7 +443,13 @@ Our targets are binary valued alignment matricies of size $|s| \times |t|$. Our 
   \end{cases}
 \end{equation}
 
-Hence, if a source token $s_i$ aligns with $t_j$, our target is 1. We now formulate our loss objective as the maximum likelihood estimate (MLE) between our alignment matrix $\psi$ and target matrix $\phi$. However, $\psi$ are hard weights, and we use the softmax function to convert our alignment weights to valid probabilities. In addition, we seek to maximize the probability for both the row ($\sigma_s$) and column ($\sigma_t$) softmax. Hence our MLE function to be maximized is:
+Hence, if a source token $s_i$ aligns with $t_j$, our target is 1.
+We now formulate our loss objective as the maximum likelihood estimate (MLE)
+between our alignment matrix $\psi$ and target matrix $\phi$.
+However, $\psi$ are hard weights, and we use the softmax function to
+convert our alignment weights to valid probabilities. In addition, we
+seek to maximize the probability for both the row ($\sigma_s$) and
+column ($\sigma_t$) softmax. Hence our MLE function to be maximized is:
 
 \begin{equation}
   MLE(\psi, \phi) = \prod_i \prod_j \left[ \frac{\exp \psi_{ij}}{\sum_k \exp \psi_{ik}} \right]^{\phi_{ij}} \cdot \left[ \frac{\exp \psi_{ij}}{\sum_k \exp \psi_{kj}} \right]^{\phi_{ij}}
@@ -361,13 +460,21 @@ Hence, if a source token $s_i$ aligns with $t_j$, our target is 1. We now formul
   MLE(\psi, \phi) = \prod_i \prod_j \left[ \sigma_s(\psi)_{ij} \right]^{\phi_{ij}} \cdot \left[ \sigma_t(\psi)_{ij} \right]^{\phi_{ij}}
 \end{equation}
 
-We can see that by maximizing the MLE function allows our network to drive the probabilities of alignment to be as close to $1$ as possible, and implicity depresses all other values along the row and column. However, neural networks do not maximizing objective functions, and the multiplication of small probaiblites leads to issues of numerical stabliltiy. We therefore define the Negative Log Likelihood function:
+We can see that by maximizing the MLE function allows our network to
+drive the probabilities of alignment to be as close to $1$ as possible,
+and implicity depresses all other values along the row and column.
+However, neural networks do not maximizing objective functions, and
+the multiplication of small probaiblites leads to issues of numerical
+stabliltiy. We therefore define the Negative Log Likelihood function:
 
 \begin{equation}
   NLL(\psi, \phi) = - \sum_i \sum_j  \phi_{ij} \cdot \log \sigma_s (\psi)_{ij} + \phi_{ij} \cdot \log \sigma_t (\psi)_{ij}
 \end{equation}
 
-We sum up the log alignment probabilities corresponding to our target alignments, and this is minimized when the probability of alignment is high, and hence we can learn target alignments between source sentence $s$ and target sentence $t$.
+We sum up the log alignment probabilities corresponding to our
+target alignments, and this is minimized when the probability of alignment
+is high, and hence we can learn target alignments between source
+sentence $s$ and target sentence $t$.
 
 \begin{figure}
   \centering
@@ -392,7 +499,9 @@ We sum up the log alignment probabilities corresponding to our target alignments
     \edge {nsum} {loss};
 
   \end{tikzpicture}
-  \caption{Computation graph for our supervised loss function. The generated alignment matrix $\psi$ is compared to the ground truth alignment matrix $\phi$ to output a loss value $\mathcal{L}$.}
+  \caption{Computation graph for our supervised loss function.
+    The generated alignment matrix $\psi$ is compared to the ground
+    truth alignment matrix $\phi$ to output a loss value $\mathcal{L}$.}
   \label{fig:supervised_loss}
 \end{figure}
 
@@ -400,7 +509,8 @@ We sum up the log alignment probabilities corresponding to our target alignments
 
 % refrence appendix
 
-Our unsupervised loss function, to be minimized, is a 5-term equation. We define:
+Our unsupervised loss function, to be minimized, is a 5-term equation.
+We define:
 \begin{itemize}[label={}]
   \item $a_t$ as the target prior alignment matrix normalized per column with respect to $t$\\ %per col wrt t
   \item $a_s$ as the source prior alignment matrix normalized per row with respect to $s$\\ %per row wrt s
@@ -434,7 +544,8 @@ for $s_i$ and $t_j$ indexing into our matrices.
 \end{split}
 \end{equation}
 
-The full derivation of the loss function and its component terms can be found in Appendix ~\ref{appendix:loss-function}.
+The full derivation of the loss function and its component terms
+can be found in Appendix ~\ref{appendix:loss-function}.
 
 
 \section{Train/Eval Implmentation}
@@ -443,10 +554,15 @@ The full derivation of the loss function and its component terms can be found in
 \subsection{Optimizer}
 Adam
 \subsection{Alignment Generations}
-Our models generate alignment matricies $\psi$. However, these matricies are just weights, and we need to covnert them into meanigful alignments. Hence we describe several methods to covert our weights into actual alignemnts.
+Our models generate alignment matricies $\psi$. However, these matricies
+are just weights, and we need to covnert them into meanigful alignments.
+Hence we describe several methods to covert our weights into actual alignemnts.
 
 \subsubsection{Argmax Alignments}
-The simplest and naive version of generating alignments is to align a source token $s_i$ to a target token $t_j$ such that the alignment weight $\psi$ is maximized. We can do this with respect to the source (row) or target (column).
+The simplest and naive version of generating alignments is to
+align a source token $s_i$ to a target token $t_j$ such that the
+alignment weight $\psi$ is maximized. We can do this with respect
+to the source (row) or target (column).
 \begin{equation}
   r_{ij} = \begin{cases}
     1 & \text{if } j=\argmax_k \psi_{ik} \\
@@ -465,13 +581,19 @@ However, this forces a single alignment for a row or column.
 
 \subsubsection{Union, Intersection, and Grow-Diag-Final}
 
-An improvement to the naive argmax alignments is to consider the union and intersection of the alignments generated. The union would be the element-wise hadamard product of the row and column alignments.
+An improvement to the naive argmax alignments is to consider the
+union and intersection of the alignments generated. The union would
+be the element-wise hadamard product of the row and column alignments.
 
 \begin{equation}
   u_{ij} = r_{ij} \cdot c_{ij}
 \end{equation}
 
-This method generates alignments that both directions agree on. However, this is a more conservative alignement method that either argmax method alone. Hence, we could take theu intersection. This generates alignments where only one of the original directions has to align.
+This method generates alignments that both directions agree on.
+However, this is a more conservative alignement method that either
+argmax method alone. Hence, we could take theu intersection.
+This generates alignments where only one of the original directions
+has to align.
 
 \begin{equation}
   n_{ij} = r_{ij} \text{ or } c_{ij}
@@ -482,10 +604,16 @@ This method generates alignments that both directions agree on. However, this is
 
 \subsubsection{Thresholding}
 
-The best approach would be to allow for alignments to be generated under a threshold scheme. Hence we can generate multiple alignments per row (or column) that are likely. We can then apply the Grow-Diag-Final method to prune alignments to the union plus ajacent intersections.
+The best approach would be to allow for alignments to be generated
+under a threshold scheme. Hence we can generate multiple alignments
+per row (or column) that are likely. We can then apply the
+Grow-Diag-Final method to prune alignments to the union plus
+ajacent intersections.
 
 
-We first standardize our alingment weights to have zero mean and standard deviation of 1. This bounds the thresholding cirteria, since our weights can get arbitrailly large.
+We first standardize our alingment weights to have zero mean and
+standard deviation of 1. This bounds the thresholding cirteria,
+since our weights can get arbitrailly large.
 
 For a source (row) based standardization:
 
@@ -499,7 +627,8 @@ For a source (row) based standardization:
   Z_{ij} = \frac{\psi_{ij} - \mu_i}{\sigma_i}
 \end{equation}
 
-For a target (column) standardization, we compute means and standard deviations along the columns.
+For a target (column) standardization, we compute means and
+standard deviations along the columns.
 
 We can then apply a threshold to the values to generate alignments.
 % find adaptive threshold methods
@@ -607,10 +736,13 @@ target word are conditionally independent, hence a product over target
 words $t_j$. We then sum over all the alignment possibilities from the source
 words $s_i$, thus marginalizing over the alignments.
 
-For $s \mapsto t$ alignments, alignments are softmaxed per column because we hold the target $t_j$ constant and iterate over the source $s_i$, hence $\sigma_t$.
+For $s \mapsto t$ alignments, alignments are softmaxed per column because
+we hold the target $t_j$ constant and iterate
+over the source $s_i$, hence $\sigma_t$.
 
-The translation probabilities are softmaxed per row (i.e., source word $s_i$) since we are given a source word
-and want to know the probability of translating $s_i$ to $t_j$, hence $\sigma_s$.
+The translation probabilities are softmaxed per row (i.e., source word $s_i$)
+since we are given a source word and want to know the probability of
+translating $s_i$ to $t_j$, hence $\sigma_s$.
 
 However, as we do not maximize in neural networks, we must transform this
 equation into a minimization problem by taking the negative log of $p$:
@@ -679,10 +811,11 @@ a_t (i, j) =
 In \cite{dyer2013simple}, parameter values were selected as
 $\lambda = 4$ and $p_0 = 0.08$ for the entire corpus.
 Each element value of $a_t$ is normalized by the sum of the column distortion
-values to create a valid distribution via term $Z_j$ (since we hold target $t_j$ constant). For future notation, let the subscript on the distirbution $a$ denote
-the way we normalize; i.e., $a_t$ is the prior alignment distribution normalized
-with respect to target words $t_j$ and thus normalized by the sum of the column
-for $t_j$.
+values to create a valid distribution via term $Z_j$
+(since we hold target $t_j$ constant). For future notation, let the subscript
+on the distribution $a$ denote the way we normalize; i.e., $a_t$ is the
+prior alignment distribution normalized with respect to target
+words $t_j$ and thus normalized by the sum of the column for $t_j$.
 
 % \todo: change?
 We can then write our KL Divergence (to be minimized) as:
