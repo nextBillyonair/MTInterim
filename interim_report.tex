@@ -648,10 +648,327 @@ values to generate alignments.
 The form for the thresholds $\tau$ is still yet to be determined. It will most
 likely be derived from the $\mu$ and $\sigma$ to create a threshold $\tau$ that
 will allow some but not all maximum values to be considered alignments. We will
-investigate by graphing the histograms of true alignment $z$-scores and non $z$-scores and find a good partition. 
+investigate by graphing the histograms of true alignment $z$-scores and non
+$z$-scores and find a good partition. 
 
 \section{Ground Truth Alignment Results}
 % ?
+
+\section{Data}
+
+% talk about subtitle extraction. Also labeling of data for supervised? Or
+% should that go in supervised training section. Get Bailey to mention Nikita
+% metric for baseline on unaligned corpus.
+
+
+\subsection{Introduction}
+
+The efficacy of a neural network alignment system depends heavily on the
+quantity and quality of the training data available. We look to leverage
+existing corpora of natural language in various settings instead of the
+traditional corpora (such as Europal, which is domain-specific and lacks the
+unstructured and informal nature of everyday language). Training on these
+commonly-used corpora leads to models with preferences for emitting language
+of a parliamentary nature; we elect to focus on corpora that
+provide more of a contextual breadth.
+
+To this end, we amassed a corpus of domestic and international movie and TV
+show subtitles from a variety of sources. Subtitles have the unique advantage
+of being already sentence-aligned, thanks to timestamps. This alignment
+somewhat holds even if timestamps are skewed between different media
+formats of the same source with slightly different timings.
+
+Our preference was to collect only professional or official subtitles, but
+unfortunately these fall under copyright law and are often not publicly
+available. However, there are communities of volunteer transcribers and
+translators from which we can obtain unofficial subtitles. Many of these
+communities have databases with publicly available dumps of all translations,
+offer an API, or have a website that is scrapeable. We have employed these
+tactics to obtain an initial corpus (see
+\hyperref[subsec:procuring-subtitles]{Procuring Subtitles}).
+
+We plan to handle subtitles in strict alignment (that is, those whose timestamps
+correspond exactly) and will also attempt to sentence-align those in
+fuzzy alignment (i.e., timestamps do not correspond one-to-one). For more on our
+methodology, see \hyperref[subsec:subtitle-alignment]{Subtitle Alignment}.
+
+For evaluating the effectiveness of our model and to facilitate
+supervised training, we require ground truth alignments for some subset of our corpus. As our corpus currently has 90 million English-French aligned subtitles
+(each approximately consisting of one sentence), it impractical to align by hand,
+even with significant resources.
+We are thus presented with an evaluation problem similar to that in Liu et al.
+\cite{liu2015streaming} (though instead of the ground truth being intractable,
+our ground truth is impractical to compute).
+
+We elect to obtain ground truth alignments by a consensus-based
+approach similar to that in \cite{liu2015streaming}. Broadly, we look to
+well-known open-source alignment software \textit{en masse} to provide an approximation of the ground truth alignments.
+We do so by evaluating the pairwise overlap between
+each aligner and our model to determine a metric that can approximate
+Alignment Error Rate (AER) (see
+\hyperref[subsec:ground-truth-alignments]{Ground Truth Alignments}).
+
+\subsection{Procuring Subtitles}
+\label{subsec:procuring-subtitles}
+
+Subtitles were procured via a variety of means, including downloading data
+dumps; using APIs; and web scraping.
+
+Websites like \href{https://www.opensubtitles.org/}{OpenSubtitles} offer
+open source tarballs of their available subtitles. We obtained
+a recent version of this dump and have begun tooling to massage it into a
+uniform format so that we can import it into our corpus.
+
+Communities like the aforementioned, while operating in a legal gray area, tend
+to be on the up-and-up in that they respond to DMCA takedown requests. Other
+websites adhere to these with less urgency, so we elect not to link them.
+However, these sites are still useful communities of tens of thousands of
+transcribers and translators whose subtitles can be useful for our corpus.
+
+Due to their underground nature, many of these sites place strict download
+limits on subtitles. To combat this, we engineered tools to cleverly extract metadata (by utilizing a breadth of different-DC hosts doing intelligent
+scraping); we then make intelligent decisions on which subtitles to procure,
+based on quality metrics computed from this metadata. These metrics include user subtitle rating (if available); number of downloads (normalized per
+movie/episode); and number of editors/edits. The metrics can also be normalized across language, as certain languages have more subtitles than others.
+
+Other websites avoid the legal gray area of hosting subtitles and translations
+by employing deniability tactics, such as requiring the SHA256 hash of a video
+file (instead of a movie title or show name) to locate subtitles. Such sites
+include \href{http://thesubdb.com/}{SubDB}, which provides an open API for
+accessing subtitles. We are currently exploring methods for collecting lists of
+hashes of popular media (by scraping websites which list this media) that we
+can feed through this website. This would have the twofold advantage of
+i) allowing us to index their database for subtitles in which we are interested
+and ii) giving us subtitle alignments to other sources. We also considered
+reaching out to the owners of such databases, but since they only maintain
+hashes, we would still need a way of associating subtitles with their source
+media.
+
+
+\subsubsection{Unified Data Format}
+
+As a secondary step to procurement, we need to unify the disparate data
+collected from various sources into a format that allows us to make decisions
+about language pairs and easily extract pairable subtitle files for alignment.
+For this purpose, we wrote custom scripting utilities for i) parsing
+the data formats obtained from each of the source websites and ii) converting
+all relevant data into a unified, compact binary format that is designed to be
+streamed. This format allows for online streaming creation from a live stream
+of incoming data and also permits out-of-memory statistical analysis and
+subtitle file alignment.
+
+
+\subsection{Subtitle Alignment}
+\label{subsec:subtitle-alignment}
+
+We have two goals in data processing. First, we must align
+subtitle files from matching shows and episodes within sources and between
+sources. Then, once we have pairs of subtitle files (each of the same medium,
+but translated into different languages), we can begin the next step of
+tokenizing and aligning their sentences to produce appropriate input for
+our model. We can also use these pairs to derive
+\hyperref[subsec:ground-truth-alignments]{Ground Truth Alignments} for the
+purposes of model evaluation and supervised training.
+
+We have several cases of subtitle file alignment to consider. Suppose we have
+Subtitle file \textit{A} (in language \textit{S}) and Subtitle file \textit{B}
+(in language \textit{T}). Then we have
+
+\begin{enumerate}
+
+    \item Files \textit{A} and \textit{B} are from the same source. Further,
+        the files were grouped together on their source website under the same
+        translation version. This means that one is a derivative/translation
+        of the other. This can be confirmed by examining the number of lines
+        in each file (and the timestamps of the subtitles). Typically these
+        files are in one-to-one or near-one-to-one correspondence. We call
+        these files ``exact pairs.'' Producing aligned sentences from these is
+        trivial. Simply traverse the two in lock step and each each sentence
+        pair you encounter.
+
+    \item Files \textit{A} and \textit{B} are from the same source. However,
+        while they are for the same medium, they aren't grouped under the
+        same subtitle version. This means they may not be derivatives of
+        one another (for example, they may have been independently transcribed
+        and translated solely by watching the source material instead of
+        consulting another subtitle). We call \textit{A} and \textit{B} a 
+        ``fuzzy pair.'' This case is slightly more complex to handle, because
+        \textit{A} and \textit{B} may have been transcribed from different
+        media formats with different timing delays. However, sentence
+        alignments can still be produced by taking advantage of the fact that
+        their sequential nature is still preserved. By employing some
+        heuristics and interpolation, we can generate high-certainty sentence
+        pairings. We plan to evaluate these pairings by analyzing in isolation
+        the AER on this dataset when fed through the software we plan to use
+        for \hyperref[subsec:ground-truth-alignments]{Ground Truth Alignments}.
+
+    \item Files \textit{A} and \textit{B} are from different sources. This can
+        largely be treated the same as the case above, however we first must
+        determine if \textit{A} and \textit{B} are subtitles for the same media
+        in different languages. We have metadata identifying languages
+        \textit{S} and \textit{T} and the files, so eliminating same-language
+        pairs is trivial. To match media, we employ NLP techniques to perform
+        fuzzy matching on file metadata in an attempt to correlate movie/show
+        title, episode/season name/number, etc. We may also consult an external
+        metadata database to unify our subtitle metadata.
+
+\end{enumerate}
+
+Considerations must also be made to perform the aforementioned processes
+efficiently, due to large corpus size.
+
+Another consideration we plan to make is ensuring that from the breadth of
+sources we don't produce duplicate subtitle pairings (if, for example, two
+sources provided the exact same subtitles). This will likely consist an
+extra post processing step before the data is given to the alignment model for
+training.
+
+
+\subsubsection{Preliminary Corpus Statistics}
+
+We briefly summarize statistics on a subset of our corpus, which has already
+been collected and processed by the data unification pipeline. A
+significant portion of our corpus has been withheld from these numbers as it
+is still processing. Additionally, we plan to collect data from even more
+sources to negate any effects of average quality subtitles.
+
+Looking at language prevalence, we have 84,000 English subtitle files and
+23,000 French subtitle file (Figure \ref{fig:language-prevalence}). We note
+that each file contains many sentences.
+
+\begin{figure}[ht]
+    \centering
+    \begin{tabular}{ |l|r| }
+        \hline
+        \multicolumn{1}{|c|}{\textbf{Language}} &
+            \multicolumn{1}{|c|}{\textbf{Subtitle Files}} \\
+        \hline
+        English    & 84,959 \\  \hline
+        French     & 23,195 \\  \hline
+        Portuguese & 16,912 \\  \hline
+        Italian    & 15,998 \\  \hline
+        Dutch      & 10,690 \\  \hline
+        Spanish    & 10,515 \\  \hline
+        German     & 5,462  \\  \hline
+        Romanian   & 4,726  \\  \hline
+        Bulgarian  & 3,136  \\  \hline
+        Greek      & 2,246  \\  \hline
+    \end{tabular}
+
+    \caption{Number of subtitle files for the top 10 most prevalent langauges
+             in our corpus subset}
+    \label{fig:language-prevalence}
+\end{figure}
+
+Next, we note the approximate number of sentence pairs per ``exact pair" of
+subtitle languages (Figure \ref{fig:exact-pair-sentences}). There
+are a significant number (5.7 million) of already aligned sentences for
+English, French. However, we'd like more data than this, so we also consider
+``fuzzy pairs" (Figure \ref{fig:fuzzy-pair-sentences}).
+
+When considering ``fuzzy pairs" in addition to the ``exact pairs" we see that
+we now have a plethora of sentence pairs. Notably, we have over 80 million
+English-French sentence pairs and 67 million English-Italian sentence pairs.
+We also have mobility between language pairs that don't include English
+(55.6 million French-Italian sentence pairs, for example). Such a large corpus
+of pairs allows us to comfortably train and evaluate the alignment model on
+various language pairs to determine its efficacy.
+
+\begin{figure}[ht]
+    \centering
+    \begin{tabular}{ |l|r| }
+        \hline
+        \multicolumn{1}{|c|}{\textbf{Exact Language Pair}} &
+            \multicolumn{1}{|c|}{\textbf{Aligned Sentences}} \\ \hline
+        English, French       & 5,747,845 \\ \hline
+        English, Bulgarian    & 1,918,850 \\ \hline
+        French, Bulgarian     & 1,115,980 \\ \hline
+        English, Portuguese   & 754,248   \\ \hline
+        French, Portuguese    & 404,377   \\ \hline
+        English, Spanish      & 340,123   \\ \hline
+        Portuguese, Bulgarian & 211,751   \\ \hline
+        English, Romanian     & 160,416   \\ \hline
+        English, Greek        & 120,561   \\ \hline
+        French, Romanian      & 87,082    \\ \hline
+    \end{tabular}
+
+    \caption{Top 10 approximate number of sentence pairs per ``exact pair" of
+             subtitle languages}
+    \label{fig:exact-pair-sentences}
+\end{figure}
+
+\begin{figure}[ht]
+    \centering
+    \begin{tabular}{ |l|r| }
+        \hline
+        \multicolumn{1}{|c|}{\textbf{Fuzzy Language Pair}} &
+            \multicolumn{1}{|c|}{\textbf{Aligned Sentences}} \\
+        \hline
+        English, French     & 81,627,311 \\ \hline
+        English, Italian    & 67,458,538 \\ \hline
+        Italian, French     & 55,623,242 \\ \hline
+        English, Portuguese & 55,487,067 \\ \hline
+        French, Portuguese  & 43,822,977 \\ \hline
+        English, Dutch      & 41,648,439 \\ \hline
+        English, Spanish    & 39,650,085 \\ \hline
+        Italian, Portuguese & 36,098,391 \\ \hline
+        French, Dutch       & 35,809,672 \\ \hline
+        English, German     & 32,495,335 \\ \hline
+        Spanish, French     & 31,086,831 \\ \hline
+        Italian, Dutch      & 29,880,240 \\ \hline
+        French, German      & 27,358,847 \\ \hline
+        Portuguese, German  & 26,362,749 \\ \hline
+        Spanish, Italian    & 26,182,558 \\ \hline
+        Italian, German     & 23,596,809 \\ \hline
+        Spanish, Portuguese & 23,451,001 \\ \hline
+        English, Romanian   & 22,800,267 \\ \hline
+        Portuguese, Dutch   & 21,380,712 \\ \hline
+        English, Bulgarian  & 20,239,688 \\ \hline
+    \end{tabular}
+
+    \caption{Top 20 number of approximate sentence pairs per ``fuzzy pair" of
+             subtitle languages}
+    \label{fig:fuzzy-pair-sentences}
+\end{figure}
+
+We make one final important note that these estimations are based off of
+subtitle file metadata. The exact number of sentence pairs won't be known until
+the subtitle file alignment step is completed. This approximation assumes that
+each subtitle line corresponds to one sentence. We believe this to be a
+reasonable assumption, but it may be the case that in practice that this is
+correspondence is smaller.
+
+
+\subsection{Ground Truth Alignments}
+\label{subsec:ground-truth-alignments}
+
+For evaluating the Alignment Error Rate (AER) of our alignment model and to
+offer the possibility of supervised training, we require ground truth
+alignments. With smaller corpora like
+\href{https://www.isi.edu/natural-language/download/hansard/}{\textit{Handsards}},
+human alignments are tractable given the relatively small corpus size
+(approximately 1 million sentence pairs). However, for our significantly larger
+corpus, this poses a problem. Its size and our limited resources preclude us
+from obtaining ground truth human alignments.
+
+To combat this, we employ an ensemble approach similar to that in Liu et al.
+\cite{liu2015streaming}. In particular, we plan to align our dataset with
+the
+\href{http://nlp.cs.berkeley.edu/projects/historical.shtml#WordAligner}{Berkley Aligner},
+\href{https://clear.colorado.edu/CompSemWiki/index.php/MGIZA\%2B\%2B}{MGIZA},
+\href{https://github.com/clab/fast\_align}{Fast Align}, and
+\href{https://anymalign.limsi.fr/}{Anymalign} first. We will then compare the
+pairwise results of the aligners. By evaluating their AERs and
+overlaps/differences, we can derive an approximate gold standard alignment. For
+example, all of the aligners agreeing on a certain word pair should give good
+credence to it being a ground truth pair. We plan to weight their contributions
+by the inverse of their pairwise relative AERs. From this, we can easily derive
+ground truth alignments.
+
+For evaluating the performance of our alignment model, we will consider its
+AER against our hypothesized ground truth, as well as its pairwise AER against
+each ground truth aligner (weighted by the inverse of that aligner's pairwise
+relative AERs within our ground truth alignment group, as before).
 
 \section{Future Work}
 % what to get done by final report
