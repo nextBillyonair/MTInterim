@@ -560,10 +560,17 @@ in Appendix ~\ref{appendix:loss-function}.
 
 
 \section{Train/Eval Implmentation}
+
 \subsection{Vocabulary Building}
+
 \subsection{Batching}
+
 \subsection{Optimizer}
-% Adam
+We use the Adam optimizer \cite{kingma2014adam}, which efficiently performs
+gradient-based optimization for stochastic objective functions. Adam has proven
+itself an effective optimizer, allowing for better performance regarding
+problems with sparse gradients (i.e., natural language problems).
+
 \subsection{Alignment Generations}
 Our models generate alignment matrices $\psi$. However, these matrices are just
 weights, and we need to convert them into meaningful alignments. We describe
