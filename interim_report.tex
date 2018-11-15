@@ -98,11 +98,11 @@
 
 \begin{abstract}
 % \noindent \blindtext
-We discuss our intial progress on our Neural Word Alignment model. More
+We discuss our initial progress on our Neural Word Alignment model. More
 specifically, we detail our data procurement methods and processing algorithms;
 elaborate on our current experimental models (including the Dot Aligner and
 Bidirectional GRU Aligner); and define our loss function, train/evaluation
-implementation, and batching techniques.
+implementation, and preliminary results.
 \end{abstract}
 
 %------------------------------------------------------------------------------
@@ -118,8 +118,9 @@ they require less parameters and thus counter long training times and the risk
 of overfitting (\cite{koehn2019neural}).}
 
 In this paper, we first define relevant equations for our model, then further
-describe our architecture and loss function. We then discuss data collection
-(as currently completed at this time) and future plans for training/evaluation. 
+describe our architecture and loss function and note preliminary results.
+We then discuss data collection (as currently completed at this time) and future
+plans for training/evaluation.
 % @viv
 
 \section{Model Components}
@@ -243,7 +244,6 @@ is the new hidden state at time $t$, and $\sigma$ is the sigmoid function.
 
 GRUs only process sequences in a forward direction. However, for
 translation and in general NLP, we also care about the succeeding input.
-%@viv rephrase
 We thus introduce the Bidirectional GRU, which that runs two separate GRU
 layers in opposite directions and stacks the output such that each element has
 the context of elements before and after it.
@@ -558,11 +558,11 @@ The full derivation of the loss function and its component terms can be found
 in Appendix ~\ref{appendix:loss-function}.
 
 
-\section{Train/Eval Implmentation}
+\section{Train/Eval Implementation}
 
-\subsection{Vocabulary Building}
+%\subsection{Vocabulary Building}
 
-\subsection{Batching}
+%\subsection{Batching}
 
 \subsection{Optimizer}
 We use the Adam optimizer \cite{kingma2014adam}, which efficiently performs
@@ -616,12 +616,15 @@ of the original directions must align.
 \end{equation}
 
 % Add grow diag final here.
+For our final model, we will additionally provide a many-to-many translation
+scheme influenced by the Moses Statistical Translation System's
+\verb|Grow-Diag-Final| alignment heuristic.
 
 \subsubsection{Thresholding}
 
 The best approach would be to allow for alignments to be generated under a
-threshold scheme. Hence we can generate multiple alignments per row (or column)
-that are likely. We can then apply the Grow-Diag-Final method to prune
+threshold scheme. Hence, we can generate multiple alignments per row (or column)
+that are likely. We can then apply the \verb|Grow-Diag-Final| method to prune
 alignments to the union plus adjacent intersections.
 
 We first standardize our alignment weights to have a mean of $0$ and standard
@@ -657,15 +660,50 @@ will allow some but not all maximum values to be considered alignments. We will
 investigate by graphing the histograms of true alignment $z$-scores and non
 $z$-scores and find a good partition.
 
-\section{Ground Truth Alignment Results}
-% ?
+\section{Preliminary Results}
+The following results %(see Tables \ref{fig:prelim-results-dot},
+%\ref{fig:prelim-results-gru})
+are from the preliminary version of our model and
+thus not yet optimal; we suspect that implementation of \verb|Grow-Diag-Final|,
+as well as improved thresholding, will greatly improve results.
+
+\begin{figure}[ht]
+    \label{fig:prelim-results-dot}
+    \centering
+    \begin{tabular}{ |l|c|c|c| }
+        \hline
+        \textbf{} & \textbf{Precision} & \textbf{Recall} & \textbf{AER} \\
+        \hline
+        Baseline &  0.904 & 0.822 & 0.132 \\ \hline
+        Row & 0.656 & 0.864 & 0.278 \\ \hline
+          Column & 0.664 & 0.825 & 0.281 \\ \hline
+          Union & 0.572 & 0.876 & 0.345 \\ \hline
+          Intersection & 0.820 & 0.814 & 0.182 \\ \hline
+          Thresholding & 0.814 & 0.817 & 0.184 \\ \hline
+    \end{tabular}
+
+    \caption{Dot}
+\end{figure}
+
+\begin{figure}[ht]
+    \label{fig:prelim-results-gru}
+    \centering
+    \begin{tabular}{ |l|c|c|c| }
+        \hline
+        \textbf{} & \textbf{Precision} & \textbf{Recall} & \textbf{AER} \\
+        \hline
+        Baseline &  0.904 & 0.822 & 0.132 \\ \hline
+        Row & 0.681 & 0.846 & 0.266 \\ \hline
+        Column & 0.691 & 0.831 & 0.261 \\ \hline
+        Union & 0.592 & 0.855 & 0.339 \\ \hline
+        Intersection & 0.888 & 0.822 & 0.140 \\ \hline
+        Thresholding & 0.888 & 0.822 & 0.140 \\ \hline
+    \end{tabular}
+
+    \caption{GRU}
+\end{figure}
 
 \section{Data}
-
-% talk about subtitle extraction. Also labeling of data for supervised? Or
-% should that go in supervised training section. Get Bailey to mention Nikita
-% metric for baseline on unaligned corpus.
-
 
 \subsection{Introduction}
 
@@ -978,6 +1016,7 @@ relative AERs within our ground truth alignment group, as before).
 
 \section{Future Work}
 % what to get done by final report
+% For the final report, we intend to incorporate batching
 
 %------------------------------------------------------------------------------
 
