@@ -107,23 +107,22 @@ implementation, and batching techniques.
 
 %------------------------------------------------------------------------------
 \section{Introduction}
+Our neural word alignment model is inspired by IBM Models 1 and 2 (including
+Dyer et al. \cite{dyer2013simple}'s reparametrization of the latter); we
+replaced the EM algorithm and \verb|fast_align| implementations with a neural
+network architecture, using PyTorch. This architecture utilizes gated recurrent
+units (GRUs), as is successfully and effectively done in many recent papers
+(\cite{bahdanau2014neural}).\footnote{Note that our initial proposal used
+long short-term memory (LSTM) layers; however, GRUs prove a better fit in that
+they require less parameters and thus counter long training times and the risk
+of overfitting (\cite{koehn2019neural}).}
+
+In this paper, we first define relevant equations for our model, then further
+describe our architecture and loss function. We then discuss data collection
+(as currently completed at this time) and future plans for training/evaluation. 
 % @viv
-% \begin{itemize}
-%   \item Data procurement
-%   \item Baseline algorithms
-%   \item Preliminary experiments % (i.e., determining)
-%   \item Outlining planned work
-% \end{itemize}
 
-%\section{Data Procurement and Processing}
-%\subsection{Symbol Tokenization}
-%\subsection{Number Tokenization}
-%\subsection{Proper Noun Tokenization}
-%\subsection{Lemmatization Techniques}
-%\subsection{POS Tagging}
-
-% \section{Model Components}
-\section{Background}
+\section{Model Components}
 % inputs, lambdas, scaling facotrs, etc, anything on notation
 We begin by defining several operations frequently used in our experiments
 and discussion.
