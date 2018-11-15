@@ -661,9 +661,9 @@ investigate by graphing the histograms of true alignment $z$-scores and non
 $z$-scores and find a good partition.
 
 \section{Preliminary Results}
-The following results %(see Tables \ref{fig:prelim-results-dot},
-%\ref{fig:prelim-results-gru})
-are from the preliminary version of our model and
+The following results
+%(see Tables \ref{fig:prelim-results-dot}, \ref{fig:prelim-results-gru})
+are from our current experimental models and
 thus not yet optimal; we suspect that implementation of \verb|Grow-Diag-Final|,
 as well as improved thresholding, will greatly improve results.
 
@@ -682,7 +682,7 @@ as well as improved thresholding, will greatly improve results.
           Thresholding & 0.814 & 0.817 & 0.184 \\ \hline
     \end{tabular}
 
-    \caption{Dot}
+    \caption{Dot Aligner}
 \end{figure}
 
 \begin{figure}[ht]
@@ -700,7 +700,7 @@ as well as improved thresholding, will greatly improve results.
         Thresholding & 0.888 & 0.822 & 0.140 \\ \hline
     \end{tabular}
 
-    \caption{GRU}
+    \caption{Bidirectional GRU Aligner}
 \end{figure}
 
 \section{Data}
