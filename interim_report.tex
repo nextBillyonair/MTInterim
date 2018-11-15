@@ -731,24 +731,26 @@ offer an API, or have a website that is scrapeable. We have employed these
 tactics to obtain an initial corpus (see
 \hyperref[subsec:procuring-subtitles]{Procuring Subtitles}).
 
-We plan to handle subtitles in strict alignment (that is, those whose timestamps
-correspond exactly) and will also attempt to sentence-align those in
-fuzzy alignment (i.e., timestamps do not correspond one-to-one). For more on our
-methodology, see \hyperref[subsec:subtitle-alignment]{Subtitle Alignment}.
+We plan to handle subtitles in strict alignment (that is, those whose
+timestamps correspond exactly) and will also attempt to sentence-align those in
+fuzzy alignment (i.e., timestamps do not correspond one-to-one). For more on
+our methodology, see \hyperref[subsec:subtitle-alignment]{Subtitle Alignment}.
 
 For evaluating the effectiveness of our model and to facilitate
-supervised training, we require ground truth alignments for some subset of our corpus. As our corpus currently has 90 million English-French aligned subtitles
-(each approximately consisting of one sentence), it impractical to align by hand,
-even with significant resources.
+supervised training, we require ground truth alignments for some subset of our
+corpus. As our corpus currently has 90 million English-French aligned subtitles
+(each approximately consisting of one sentence), it impractical to align by
+hand, even with significant resources.
 We are thus presented with an evaluation problem similar to that in Liu et al.
 \cite{liu2015streaming} (though instead of the ground truth being intractable,
 our ground truth is impractical to compute).
 
 We elect to obtain ground truth alignments by a consensus-based
 approach similar to that in \cite{liu2015streaming}. Broadly, we look to
-well-known open-source alignment software \textit{en masse} to provide an approximation of the ground truth alignments.
-We do so by evaluating the pairwise overlap between
-each aligner and our model to determine a metric that can approximate
+well-known open-source alignment software \textit{en masse} to provide an
+approximation of the ground truth alignments. We do so by evaluating the
+pairwise overlap between each aligner and our model to determine a metric that
+can approximate
 Alignment Error Rate (AER) (see
 \hyperref[subsec:ground-truth-alignments]{Ground Truth Alignments}).
 
@@ -770,10 +772,13 @@ However, these sites are still useful communities of tens of thousands of
 transcribers and translators whose subtitles can be useful for our corpus.
 
 Due to their underground nature, many of these sites place strict download
-limits on subtitles. To combat this, we engineered tools to cleverly extract metadata (by utilizing a breadth of different-DC hosts doing intelligent
+limits on subtitles. To combat this, we engineered tools to cleverly extract
+metadata (by utilizing a breadth of different-DC hosts doing intelligent
 scraping); we then make intelligent decisions on which subtitles to procure,
-based on quality metrics computed from this metadata. These metrics include user subtitle rating (if available); number of downloads (normalized per
-movie/episode); and number of editors/edits. The metrics can also be normalized across language, as certain languages have more subtitles than others.
+based on quality metrics computed from this metadata. These metrics include
+user subtitle rating (if available); number of downloads (normalized per
+movie/episode); and number of editors/edits. The metrics can also be normalized
+across language, as certain languages have more subtitles than others.
 
 Other websites avoid the legal gray area of hosting subtitles and translations
 by employing deniability tactics, such as requiring the SHA256 hash of a video
@@ -1013,6 +1018,48 @@ For evaluating the performance of our alignment model, we will consider its
 AER against our hypothesized ground truth, as well as its pairwise AER against
 each ground truth aligner (weighted by the inverse of that aligner's pairwise
 relative AERs within our ground truth alignment group, as before).
+
+\subsection{Progress}
+
+We have collected several tens of gigabytes of compressed subtitles. In
+particular, our largest source (described earlier) is about 10 GB of compressed
+subtitle files that we have cleaned, normalized, and organized. Additionally,
+we have among five other sources 10 GB more of compressed subtitle files of
+various levels of quality. Our current work focuses on training the Berkley
+and GIZA++ aligners to provide ground truth alignments for the large subtitle
+corpus we have created. Additionally, we are organizing metadata from the
+additional sources so that we can construct inter-source subtitle pairs.
+Currently, our parallel corpus is only comprised of explicit pairs that were
+paired on their source website.
+
+\subsubsection{Ground Truth Alignments}
+
+The subset of our data that has been already processed has also been formatted
+appropriately for input into the Berkley Aligner and GIZA++. Both of these
+aligners run on our training systems, but we have yet to complete the full
+ground truth alignments for this subset of our parallel corpus. To avoid
+blocking progress of the neural alignment model, we have been using the
+Hansards dataset to do preliminary training and experimentation.
+
+\subsubsection{Inter-source Subtitle Pairs}
+
+Many of our sources group subtitles (in various languages) for the same media
+(movie or TV show episode) on one page. Some sources, such as one subtitle
+translation community, even group subtitles that are literal
+subtitle-for-subtitle translations together. This format makes creating a
+parallel corpus trivial. However, to leverage the size of some of these
+databases to create a larger corpus, we need to pair subtitle files across
+sources and then account for potential discrepancies (eg. different start
+times, different length commercial breaks, slightly different subtitle
+timings).
+
+To achieve the pairings, we are currently exploring a bag of words approach to
+compute similarity of subtitle metadata. We combine this with more explicit
+markers such as IMDb URL where available. Once we have finished aggregating
+data from all sources (we estimate we are approximately 80-90\% complete with
+this task), we will organize all sources into a single aggregate source and
+apply these pairing heuristics to generate final, large parallel corpora for
+several frequent language pairs.
 
 \section{Future Work}
 % what to get done by final report
